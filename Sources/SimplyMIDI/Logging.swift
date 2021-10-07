@@ -1,0 +1,25 @@
+// Copyright © 2021 Brad Howes. All rights reserved.
+
+import os
+import Foundation
+
+/// Builder of OSLog values for categorization / classification of log statements.
+internal struct Logging {
+
+  /**
+   Create a new logger for a subsystem
+
+   - parameter category: the subsystem to log under
+   - returns: OSLog instance to use for subsystem logging
+   */
+  public static func logger(_ category: String) -> OSLog { OSLog(subsystem: "MIDI", category: category) }
+}
+
+@discardableResult
+internal func logErr(_ log: OSLog, _ name: String, _ err: OSStatus) -> Bool {
+  if err != noErr {
+    os_log(.error, log: log, "%{public}s - %d %{public}s", name, err, err.tag)
+    return true
+  }
+  return false
+}
