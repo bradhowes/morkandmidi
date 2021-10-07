@@ -67,7 +67,7 @@ class MIDIPacketListTests: XCTestCase {
   }
 
   func testMonitoringTraffic() {
-    let monitor = Monitor()
+    let monitor = Monitor(self)
 
     var builder = MIDIPacketList.Builder()
     builder.add(packet: MIDIPacket.Builder(timestamp: 0, data: [0x91, 64, 32, 0x81, 64, 0]).packet)

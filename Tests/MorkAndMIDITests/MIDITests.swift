@@ -6,40 +6,46 @@ import XCTest
 
 class MIDITests: XCTestCase {
 
+  var midi: MIDI!
+  var monitor: Monitor!
+
+  override func setUp() {
+    midi = MIDI(clientName: "foo", uniqueId: 12_345)
+    monitor = Monitor(self)
+    midi.monitor = monitor
+  }
+
+  override func tearDown() {
+    midi.makeInactive()
+    midi = nil
+    monitor = nil
+  }
+
+  func setMonitorExpectation(_ kind: Monitor.ExpectationKind) {
+    monitor.setExpectation(kind)
+    midi.start()
+    waitForExpectations(timeout: 15.0)
+  }
+
   func testCreation() {
     XCTAssertNil(MIDI.activeInstance)
-    do {
-      let midi = MIDI(clientName: "foo", uniqueId: 12_345)
-      XCTAssertEqual(midi, MIDI.activeInstance)
-    }
-
+    midi.start();
+    XCTAssertEqual(midi, MIDI.activeInstance)
     MIDI.activeInstance?.makeInactive()
     XCTAssertNil(MIDI.activeInstance)
   }
 
   func testStartup() {
-    let mm1 = Monitor()
-    mm1.initializedExpectation = self.expectation(description: "m1 initialized")
-    let m1 = MIDI(clientName: "foo", uniqueId: 12_345)
-    m1.monitor = mm1
-    waitForExpectations(timeout: 15.0)
+    setMonitorExpectation(.initialized)
   }
 
   func testUpdatedDevices() {
-    let mm1 = Monitor()
-    mm1.updatedDevicesExpectation = self.expectation(description: "m1 updatedDevices")
-    let m1 = MIDI(clientName: "foo", uniqueId: 12_345)
-    m1.monitor = mm1
-    waitForExpectations(timeout: 15.0)
-    XCTAssertEqual(m1.devices.count, 1)
+    setMonitorExpectation(.updatedDevices)
+    XCTAssertEqual(midi.devices.count, 1)
   }
 
   func testUpdatedConnections() {
-    let mm1 = Monitor()
-    mm1.updatedConnectionsExpectation = self.expectation(description: "m1 updatedConnections")
-    let m1 = MIDI(clientName: "foo", uniqueId: 12_345)
-    m1.monitor = mm1
-    waitForExpectations(timeout: 15.0)
-    XCTAssertEqual(m1.activeConnections.count, 1)
+    setMonitorExpectation(.updatedConnections)
+    XCTAssertEqual(midi.activeConnections.count, 1)
   }
 }

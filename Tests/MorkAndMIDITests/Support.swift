@@ -20,27 +20,45 @@ internal class Receiver: MorkAndMIDI.Receiver {
 }
 
 internal class Monitor: MorkAndMIDI.Monitor {
+
+  enum ExpectationKind: String {
+    case initialized
+    case updatedDevices
+    case updatedConnections
+    case seen
+  }
+
+  weak var test: XCTestCase?
   var uniqueIds = [MIDIUniqueID: Int]()
   var ourUniqueId: MIDIUniqueID?
+  var expectationKind: ExpectationKind!
+  var expectation: XCTestExpectation!
 
-  var initializedExpectation: XCTestExpectation?
-  var updatedDevicesExpectation: XCTestExpectation?
-  var updatedConnectionsExpectation: XCTestExpectation?
+  init(_ test: XCTestCase) {
+    self.test = test
+  }
+
+  func fulfill(_ kind: ExpectationKind) {
+    if kind == expectationKind {
+      expectation.fulfill()
+    }
+  }
+
+  func setExpectation(_ kind: ExpectationKind) {
+    self.expectationKind = kind
+    self.expectation = test?.expectation(description: kind.rawValue)
+  }
 
   func initialized(uniqueId: MIDIUniqueID) {
     ourUniqueId = uniqueId
-    initializedExpectation?.fulfill()
+    fulfill(.initialized)
   }
 
-  func updatedDevices() {
-    updatedDevicesExpectation?.fulfill()
-  }
-
-  func updatedConnections() {
-    updatedConnectionsExpectation?.fulfill()
-  }
+  func updatedDevices() { fulfill(.updatedDevices) }
+  func updatedConnections() { fulfill(.updatedConnections) }
 
  func seen(uniqueId: MIDIUniqueID, channel: Int) {
-    uniqueIds[uniqueId] = channel
+   uniqueIds[uniqueId] = channel
+   fulfill(.seen)
   }
 }

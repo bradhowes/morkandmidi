@@ -70,19 +70,38 @@ public final class MIDI: NSObject {
     self.clientName = clientName
     self.ourUniqueId = uniqueId
     super.init()
-    MIDI.activeInstance = self
+  }
 
+  /**
+   Begin MIDI processing.
+   */
+  public func start() {
+    MIDI.activeInstance = self
     // Create client here -- doing it in initialize causes it to not work.
     createClient()
     DispatchQueue.global(qos: .userInitiated).async { self.initialize() }
   }
 
   /**
+   End MIDI processing.
+   */
+  public func stop() {
+    if inputPort != MIDIPortRef() {
+      MIDIPortDispose(inputPort)
+      inputPort = MIDIPortRef()
+    }
+
+    if virtualMidiIn != MIDIEndpointRef() {
+      MIDIEndpointDispose(virtualMidiIn)
+      virtualMidiIn = MIDIEndpointRef()
+    }
+  }
+
+  /**
    Tear down MIDI plumbing.
    */
   deinit {
-    if inputPort != MIDIPortRef() { MIDIPortDispose(inputPort) }
-    if virtualMidiIn != MIDIEndpointRef() { MIDIEndpointDispose(virtualMidiIn) }
+    stop()
     if client != MIDIClientRef() { MIDIClientDispose(client) }
   }
 }
