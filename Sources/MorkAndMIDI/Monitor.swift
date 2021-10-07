@@ -40,4 +40,6 @@ extension Monitor {
   public func updatedDevices() {}
 
   public func updatedConnections() {}
+
+  public func seen(uniqueId: MIDIUniqueID, channel: Int) {}
 }
