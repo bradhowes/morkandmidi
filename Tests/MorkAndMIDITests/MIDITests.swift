@@ -13,7 +13,7 @@ class MIDITests: XCTestCase {
       XCTAssertEqual(midi, MIDI.activeInstance)
     }
 
-    MIDI.activeInstance?.release()
+    MIDI.activeInstance?.makeInactive()
     XCTAssertNil(MIDI.activeInstance)
   }
 

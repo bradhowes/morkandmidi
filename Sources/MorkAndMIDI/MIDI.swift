@@ -102,7 +102,7 @@ extension MIDI {
   /**
    Release this instance from being the active one.
    */
-  internal func release() {
+  internal func makeInactive() {
     guard MIDI.activeInstance === self else { return }
     MIDI.activeInstance = nil
   }
