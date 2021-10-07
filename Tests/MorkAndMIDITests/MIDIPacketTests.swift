@@ -1,6 +1,6 @@
-// Copyright © 2020 Brad Howes. All rights reserved.
+// Copyright © 2021 Brad Howes. All rights reserved.
 
-@testable import BareMIDI
+@testable import MorkAndMIDI
 import CoreMIDI
 import XCTest
 

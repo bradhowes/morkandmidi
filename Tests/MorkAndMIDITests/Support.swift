@@ -1,15 +1,10 @@
-//
-//  File.swift
-//  
-//
-//  Created by Brad Howes on 07/10/2021.
-//
+// Copyright © 2021 Brad Howes. All rights reserved.
 
-@testable import BareMIDI
+@testable import MorkAndMIDI
 import CoreMIDI
 import XCTest
 
-class Receiver: BareMIDI.Receiver {
+internal class Receiver: MorkAndMIDI.Receiver {
 
   struct Event: Equatable {
     let cmd: UInt8
@@ -24,14 +19,14 @@ class Receiver: BareMIDI.Receiver {
   func noteOff(note: UInt8, velocity: UInt8) { self.received.append(Event(cmd: 0x80, data1: note, data2: velocity)) }
 }
 
-internal class Monitor: BareMIDI.Monitor {
+internal class Monitor: MorkAndMIDI.Monitor {
   var uniqueIds = [MIDIUniqueID: Int]()
   var ourUniqueId: MIDIUniqueID?
 
   var initializedExpectation: XCTestExpectation?
   var updatedDevicesExpectation: XCTestExpectation?
   var updatedConnectionsExpectation: XCTestExpectation?
-  
+
   func initialized(uniqueId: MIDIUniqueID) {
     ourUniqueId = uniqueId
     initializedExpectation?.fulfill()
@@ -40,7 +35,7 @@ internal class Monitor: BareMIDI.Monitor {
   func updatedDevices() {
     updatedDevicesExpectation?.fulfill()
   }
-  
+
   func updatedConnections() {
     updatedConnectionsExpectation?.fulfill()
   }

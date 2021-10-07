@@ -1,4 +1,4 @@
-# BareMIDI
+# MorkAndMIDI
 
 A really basic wrapper for [CoreMIDI](https://developer.apple.com/documentation/coremidi)
 that opens a virtual destination and connects to any MIDI endpoints that appear on the network.

@@ -1,6 +1,6 @@
-// Copyright © 2020 Brad Howes. All rights reserved.
+// Copyright © 2021 Brad Howes. All rights reserved.
 
-@testable import BareMIDI
+@testable import MorkAndMIDI
 import CoreMIDI
 import XCTest
 
@@ -10,7 +10,7 @@ class MIDITests: XCTestCase {
     XCTAssertNil(MIDI.activeInstance)
     do {
       let midi = MIDI(clientName: "foo", uniqueId: 12_345)
-      XCTAssertEqual(midi, BareMIDI.MIDI.activeInstance)
+      XCTAssertEqual(midi, MIDI.activeInstance)
     }
 
     MIDI.activeInstance?.release()
