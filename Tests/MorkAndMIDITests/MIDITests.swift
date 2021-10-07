@@ -22,7 +22,7 @@ class MIDITests: XCTestCase {
     mm1.initializedExpectation = self.expectation(description: "m1 initialized")
     let m1 = MIDI(clientName: "foo", uniqueId: 12_345)
     m1.monitor = mm1
-    waitForExpectations(timeout: 5.0)
+    waitForExpectations(timeout: 15.0)
   }
 
   func testUpdatedDevices() {
@@ -30,7 +30,7 @@ class MIDITests: XCTestCase {
     mm1.updatedDevicesExpectation = self.expectation(description: "m1 updatedDevices")
     let m1 = MIDI(clientName: "foo", uniqueId: 12_345)
     m1.monitor = mm1
-    waitForExpectations(timeout: 5.0)
+    waitForExpectations(timeout: 15.0)
     XCTAssertEqual(m1.devices.count, 1)
   }
 
@@ -39,7 +39,7 @@ class MIDITests: XCTestCase {
     mm1.updatedConnectionsExpectation = self.expectation(description: "m1 updatedConnections")
     let m1 = MIDI(clientName: "foo", uniqueId: 12_345)
     m1.monitor = mm1
-    waitForExpectations(timeout: 5.0)
+    waitForExpectations(timeout: 15.0)
     XCTAssertEqual(m1.activeConnections.count, 1)
   }
 }
