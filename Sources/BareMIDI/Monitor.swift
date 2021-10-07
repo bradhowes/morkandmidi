@@ -14,8 +14,14 @@ public protocol Monitor: AnyObject {
    */
   func initialized(uniqueId: MIDIUniqueID)
 
+  /**
+   Notification that the known devices has changed
+   */
   func updatedDevices()
 
+  /**
+   Notification that active connections have changed
+   */
   func updatedConnections()
 
   /**

@@ -4,14 +4,14 @@
 import PackageDescription
 
 let package = Package(
-  name: "SimplyMIDI",
+  name: "BareMIDI",
   platforms: [.iOS(.v12)],
   products: [
-    .library(name: "SimplyMIDI", targets: ["SimplyMIDI"]),
+    .library(name: "BareMIDI", targets: ["BareMIDI"]),
   ],
   dependencies: [],
   targets: [
-    .target(name: "SimplyMIDI", dependencies: []),
-    .testTarget(name: "SimplyMIDITests", dependencies: ["SimplyMIDI"]),
+    .target(name: "BareMIDI", dependencies: []),
+    .testTarget(name: "BareMIDITests", dependencies: ["BareMIDI"]),
   ]
 )

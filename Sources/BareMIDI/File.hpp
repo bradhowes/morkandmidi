@@ -1,9 +1,4 @@
-//
-//  File.hpp
-//  
-//
-//  Created by Brad Howes on 04/10/2021.
-//
+// Copyright © 2021 Brad Howes. All rights reserved.
 
 #ifndef File_hpp
 #define File_hpp

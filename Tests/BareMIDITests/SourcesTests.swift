@@ -1,13 +1,13 @@
 // Copyright © 2020 Brad Howes. All rights reserved.
 
-@testable import SimplyMIDI
+@testable import BareMIDI
 import CoreMIDI
 import XCTest
 
 class SourcesTests: XCTestCase {
 
   func testIndexing() {
-    let sources = SimplyMIDI.Sources()
+    let sources = Sources()
     XCTAssertTrue(sources.count > 0)
     let endpoint = sources[0]
     XCTAssertNotNil(endpoint)
@@ -15,7 +15,7 @@ class SourcesTests: XCTestCase {
 
   func testIteration() {
     var seen = 0
-    for _ in SimplyMIDI.Sources() {
+    for _ in Sources() {
       seen += 1
     }
 
@@ -23,12 +23,12 @@ class SourcesTests: XCTestCase {
   }
 
   func testUniqueIds() {
-    let uniqueIds = SimplyMIDI.Sources().uniqueIds
+    let uniqueIds = Sources().uniqueIds
     XCTAssertTrue(uniqueIds.count > 0)
   }
 
   func testDisplayNames() {
-    let displayNames = SimplyMIDI.Sources().displayNames
+    let displayNames = Sources().displayNames
     XCTAssertTrue(displayNames.count > 0)
     XCTAssertTrue(displayNames[0].count > 0)
   }

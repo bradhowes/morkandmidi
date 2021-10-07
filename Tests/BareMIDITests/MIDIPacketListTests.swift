@@ -1,6 +1,6 @@
 // Copyright © 2020 Brad Howes. All rights reserved.
 
-@testable import SimplyMIDI
+@testable import BareMIDI
 import CoreMIDI
 import XCTest
 

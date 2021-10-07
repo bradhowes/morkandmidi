@@ -5,11 +5,11 @@
 //  Created by Brad Howes on 07/10/2021.
 //
 
-import SimplyMIDI
+@testable import BareMIDI
 import CoreMIDI
 import XCTest
 
-class Receiver: SimplyMIDI.Receiver {
+class Receiver: BareMIDI.Receiver {
 
   struct Event: Equatable {
     let cmd: UInt8
@@ -24,7 +24,7 @@ class Receiver: SimplyMIDI.Receiver {
   func noteOff(note: UInt8, velocity: UInt8) { self.received.append(Event(cmd: 0x80, data1: note, data2: velocity)) }
 }
 
-internal class Monitor: SimplyMIDI.Monitor {
+internal class Monitor: BareMIDI.Monitor {
   var uniqueIds = [MIDIUniqueID: Int]()
   var ourUniqueId: MIDIUniqueID?
 
