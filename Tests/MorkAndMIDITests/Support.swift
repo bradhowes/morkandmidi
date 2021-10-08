@@ -40,6 +40,8 @@ internal class Monitor: MorkAndMIDI.Monitor {
   }
 
   func fulfill(_ kind: ExpectationKind) {
+    guard expectation != nil else { return }
+    print("fulfill: ", kind.rawValue, expectationKind.rawValue)
     if kind == expectationKind {
       expectation.fulfill()
     }

@@ -12,12 +12,12 @@ class MIDITests: XCTestCase {
   override func setUp() {
     super.setUp()
     midi = MIDI(clientName: "foo", uniqueId: 12_345)
-    print(CFGetRetainCount(midi!))
     monitor = Monitor(self)
     midi.monitor = monitor
   }
 
   override func tearDown() {
+    midi?.stop()
     midi = nil
     monitor = nil
     super.tearDown()
@@ -33,7 +33,6 @@ class MIDITests: XCTestCase {
     monitor.setExpectation(.deinitialized)
     midi.start()
     midi.stop()
-    print(CFGetRetainCount(midi!))
     midi = nil
     waitForExpectations(timeout: 15.0)
   }

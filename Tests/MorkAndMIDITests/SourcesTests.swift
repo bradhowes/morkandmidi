@@ -6,6 +6,21 @@ import XCTest
 
 class SourcesTests: XCTestCase {
 
+  var midi: MIDI!
+  var monitor: Monitor!
+
+  override func setUp() {
+    super.setUp()
+    midi = MIDI(clientName: "foo", uniqueId: 12_345)
+    midi.start()
+  }
+
+  override func tearDown() {
+    midi.stop()
+    midi = nil
+    super.tearDown()
+  }
+
   func testIndexing() {
     let sources = Sources()
     XCTAssertTrue(sources.count > 0)
