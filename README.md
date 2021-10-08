@@ -55,3 +55,10 @@ way to track the MIDI channel being used by an external device.
 I implemented my own version of the builders that are available for MIDIPacket and MIDIPacketList in iOS 14+. They are not
 100% replacement, but they do what I need in a safe and performant manner, and they allow me to continue to support iOS 12
 devices in my apps.
+
+
+[License Badge]: https://img.shields.io/github/license/bradhowes/AStar.svg?color=yellow "MIT License"
+[License]: https://github.com/bradhowes/AStar/blob/master/LICENSE.txt
+
+[Swift Badge]: https://img.shields.io/badge/swift-5.2-orange.svg "Swift 5.3"
+[Swift]: https://swift.org/blog/swift-5-3-released/
