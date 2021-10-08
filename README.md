@@ -1,3 +1,8 @@
+[![Swift](https://github.com/bradhowes/morkandmidi/workflows/CI/badge.svg)]()
+[![Swift Badge]][Swift]
+[![SwiftPM compatible](https://img.shields.io/badge/SwiftPM-compatible-brightgreen.svg)](https://swift.org/package-manager/)
+[![License Badge]][License]
+
 # MorkAndMIDI
 
 A really thin Swift layer on top of [CoreMIDI](https://developer.apple.com/documentation/coremidi)

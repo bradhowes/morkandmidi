@@ -4,6 +4,12 @@
 import CoreMIDI
 import XCTest
 
+// Note on tests: these tests run great on my laptop, but on a CI box at Github, they would sometimes fail, presumably
+// because of latency between the iOS MIDI server that has a view of the MIDI universe and the client (the test). So,
+// when there is nothing captured in `sources` these tests just silently exit without doing any actual testing.s
+//
+// A better way would be to mock out the CoreMIDI API so as to guarantee an environment in which to test the code...
+
 class SourcesTests: XCTestCase {
 
   var midi: MIDI!
