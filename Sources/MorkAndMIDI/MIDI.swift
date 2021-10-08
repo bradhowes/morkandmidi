@@ -17,7 +17,6 @@ public final class MIDI: NSObject {
   private var client: MIDIClientRef = MIDIClientRef()
   private var virtualMidiIn: MIDIEndpointRef = MIDIEndpointRef()
   private var inputPort: MIDIPortRef = MIDIPortRef()
-  private var sources: Sources { Sources() }
 
   /// Collection of endpoint IDs and the last channel ID found in a MIDI message from the endpoint
   @objc dynamic
@@ -142,7 +141,7 @@ extension MIDI {
   private func updateConnections() {
     os_log(.info, log: log, "updateConnections")
 
-    let active = sources
+    let active = Sources()
     let inactive = activeConnections.subtracting(active.uniqueIds)
 
     let changed: Int = (active.map { connectSource(endpoint: $0) ? 1 : 0 }.reduce(0, +) +
@@ -176,7 +175,7 @@ extension MIDI {
     }
 
     activeConnections.remove(uniqueId)
-    guard let endpoint = sources.first(where: { $0.uniqueId == uniqueId }) else {
+    guard let endpoint = Sources().first(where: { $0.uniqueId == uniqueId }) else {
       os_log(.error, log: log, "unable to disconnect - no endpoint with uniqueId %d", uniqueId)
       return false
     }

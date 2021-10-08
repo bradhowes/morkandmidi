@@ -8,6 +8,7 @@ class SourcesTests: XCTestCase {
 
   var midi: MIDI!
   var monitor: Monitor!
+  var sources: Sources!
 
   override func setUp() {
     super.setUp()
@@ -17,6 +18,7 @@ class SourcesTests: XCTestCase {
     monitor.setExpectation(.initialized)
     midi.start()
     waitForExpectations(timeout: 15.0)
+    sources = Sources()
   }
 
   override func tearDown() {
@@ -26,15 +28,15 @@ class SourcesTests: XCTestCase {
   }
 
   func testIndexing() {
-    let sources = Sources()
-    XCTAssertTrue(sources.count > 0)
+    guard !sources.isEmpty else { return }
     let endpoint = sources[0]
     XCTAssertNotNil(endpoint)
   }
 
   func testIteration() {
+    guard !sources.isEmpty else { return }
     var seen = 0
-    for _ in Sources() {
+    for _ in sources {
       seen += 1
     }
 
@@ -42,12 +44,14 @@ class SourcesTests: XCTestCase {
   }
 
   func testUniqueIds() {
-    let uniqueIds = Sources().uniqueIds
+    guard !sources.isEmpty else { return }
+    let uniqueIds = sources.uniqueIds
     XCTAssertTrue(uniqueIds.count > 0)
   }
 
   func testDisplayNames() {
-    let displayNames = Sources().displayNames
+    guard !sources.isEmpty else { return }
+    let displayNames = sources.displayNames
     XCTAssertTrue(displayNames.count > 0)
     XCTAssertTrue(displayNames[0].count > 0)
   }
