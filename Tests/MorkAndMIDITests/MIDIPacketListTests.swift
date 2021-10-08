@@ -6,6 +6,20 @@ import XCTest
 
 class MIDIPacketListTests: XCTestCase {
 
+  var midi: MIDI!
+
+  override func setUp() {
+    super.setUp()
+    midi = MIDI(clientName: "Na-nu Na-nu", uniqueId: 12_345)
+    midi.start()
+  }
+
+  override func tearDown() {
+    midi.stop()
+    midi = nil
+    super.tearDown()
+  }
+
   func testListBuilder() {
     let a = MIDIPacket.Builder(timestamp: 0, data: [0x91, 64, 32, 0x81, 64, 0]).packet
     let b = MIDIPacket.Builder(timestamp: 1, data: [0x91, 65, 33, 0x81, 65, 10, 0x81, 66, 0]).packet
@@ -48,6 +62,7 @@ class MIDIPacketListTests: XCTestCase {
 
   func testListsParsing() {
     let receiver = Receiver()
+    midi.receiver = receiver
 
     var builder = MIDIPacketList.Builder()
     builder.add(packet: MIDIPacket.Builder(timestamp: 0, data: [0x91, 64, 32, 0x81, 64, 0]).packet)
@@ -55,7 +70,7 @@ class MIDIPacketListTests: XCTestCase {
 
     let list = builder.packetList
     XCTAssertEqual(list.numPackets, 2)
-    list.parse(receiver: receiver, monitor: nil, uniqueId: 0)
+    list.parse(midi: midi, uniqueId: 0)
 
     XCTAssertEqual(receiver.received, [
       Receiver.Event(cmd: 0x90, data1: 64, data2: 32),
@@ -68,6 +83,7 @@ class MIDIPacketListTests: XCTestCase {
 
   func testMonitoringTraffic() {
     let monitor = Monitor(self)
+    midi.monitor = monitor
 
     var builder = MIDIPacketList.Builder()
     builder.add(packet: MIDIPacket.Builder(timestamp: 0, data: [0x91, 64, 32, 0x81, 64, 0]).packet)
@@ -77,7 +93,7 @@ class MIDIPacketListTests: XCTestCase {
     XCTAssertEqual(list.numPackets, 2)
 
     let uniqueId: MIDIUniqueID = 123
-    list.parse(receiver: nil, monitor: monitor, uniqueId: uniqueId)
+    list.parse(midi: midi, uniqueId: uniqueId)
 
     XCTAssertEqual(monitor.uniqueIds[uniqueId], 2)
   }

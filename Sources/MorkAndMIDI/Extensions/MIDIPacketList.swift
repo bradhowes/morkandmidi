@@ -35,12 +35,12 @@ extension MIDIPacketList {
    - parameter monitor: optional entity to monitor MIDI traffic
    - parameter uniqueId: the unique ID of the MIDI endpoint that sent the messages
    */
-  public func parse(receiver: Receiver?, monitor: Monitor?, uniqueId: MIDIUniqueID) {
+  public func parse(midi: MIDI, uniqueId: MIDIUniqueID) {
     os_signpost(.begin, log: log, name: "parse")
     os_log(.info, log: log, "processPackets - %d", numPackets)
     for packet in self {
       os_signpost(.begin, log: log, name: "sendToController")
-      packet.parse(receiver: receiver, monitor: monitor, uniqueId: uniqueId)
+      packet.parse(midi: midi, uniqueId: uniqueId)
       os_signpost(.end, log: log, name: "sendToController")
     }
     os_signpost(.end, log: log, name: "parse")

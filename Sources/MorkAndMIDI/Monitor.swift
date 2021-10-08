@@ -14,6 +14,8 @@ public protocol Monitor: AnyObject {
    */
   func initialized(uniqueId: MIDIUniqueID)
 
+  func deinitialized()
+
   /**
    Notification that the known devices has changed
    */
@@ -36,6 +38,8 @@ public protocol Monitor: AnyObject {
 extension Monitor {
 
   public func initialized(uniqueId: MIDIUniqueID) {}
+
+  public func deinitialized() {}
 
   public func updatedDevices() {}
 

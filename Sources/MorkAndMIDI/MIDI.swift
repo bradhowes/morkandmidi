@@ -27,9 +27,6 @@ public final class MIDI: NSObject {
   @objc dynamic
   public private(set) var activeConnections = Set<MIDIUniqueID>()
 
-  /// Currently active MIDI instance
-  public private(set) static weak var activeInstance: MIDI?
-
   /**
    Current state of a MIDI device
    */
@@ -66,17 +63,24 @@ public final class MIDI: NSObject {
    Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic
    */
   public init(clientName: String, uniqueId: MIDIUniqueID) {
-    MIDI.activeInstance = nil
     self.clientName = clientName
     self.ourUniqueId = uniqueId
     super.init()
   }
 
   /**
+   Tear down MIDI plumbing.
+   */
+  deinit {
+    stop()
+    if client != MIDIClientRef() { MIDIClientDispose(client) }
+    monitor?.deinitialized()
+  }
+
+  /**
    Begin MIDI processing.
    */
   public func start() {
-    MIDI.activeInstance = self
     // Create client here -- doing it in initialize causes it to not work.
     createClient()
     DispatchQueue.global(qos: .userInitiated).async { self.initialize() }
@@ -96,14 +100,6 @@ public final class MIDI: NSObject {
       virtualMidiIn = MIDIEndpointRef()
     }
   }
-
-  /**
-   Tear down MIDI plumbing.
-   */
-  deinit {
-    stop()
-    if client != MIDIClientRef() { MIDIClientDispose(client) }
-  }
 }
 
 extension MIDI {
@@ -116,14 +112,6 @@ extension MIDI {
    */
   public func updateChannel(uniqueId: MIDIUniqueID, channel: Int) {
     channels[uniqueId] = channel
-  }
-
-  /**
-   Release this instance from being the active one.
-   */
-  internal func makeInactive() {
-    guard MIDI.activeInstance === self else { return }
-    MIDI.activeInstance = nil
   }
 }
 
@@ -138,7 +126,8 @@ extension MIDI {
   }
 
   private func createClient() {
-    let err = MIDIClientCreateWithBlock(clientName as CFString, &client) {
+    let err = MIDIClientCreateWithBlock(clientName as CFString, &client) { [weak self] in
+      guard let self = self else { return }
       let messageID = $0.pointee.messageID
       os_log(.debug, log: self.log, "client callback: %{public}s", messageID.tag)
       if messageID  == .msgSetupChanged {
@@ -210,7 +199,8 @@ extension MIDI {
   }
 
   private func createVirtualDestination() {
-    let err = MIDIDestinationCreateWithBlock(client, inputPortName as CFString, &virtualMidiIn) { packetList, refCon in
+    let err = MIDIDestinationCreateWithBlock(client, inputPortName as CFString, &virtualMidiIn) { [weak self] packetList, refCon in
+      guard let self = self else { return }
       self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
     }
 
@@ -220,7 +210,8 @@ extension MIDI {
   }
 
   private func createInputPort() {
-    let err = MIDIInputPortCreateWithBlock(client, inputPortName as CFString, &inputPort) { packetList, refCon in
+    let err = MIDIInputPortCreateWithBlock(client, inputPortName as CFString, &inputPort) { [weak self] packetList, refCon in
+      guard let self = self else { return }
       self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
     }
 
@@ -260,6 +251,6 @@ extension MIDI {
 
   private func processPackets(packetList: MIDIPacketList, uniqueId: MIDIUniqueID) {
     os_log(.debug, log: log, "processPackets - numPackets: %d uniqueId: %d", packetList.numPackets, uniqueId)
-    packetList.parse(receiver: receiver, monitor: monitor, uniqueId: uniqueId)
+    packetList.parse(midi: self, uniqueId: uniqueId)
   }
 }

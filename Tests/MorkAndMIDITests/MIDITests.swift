@@ -10,15 +10,17 @@ class MIDITests: XCTestCase {
   var monitor: Monitor!
 
   override func setUp() {
+    super.setUp()
     midi = MIDI(clientName: "foo", uniqueId: 12_345)
+    print(CFGetRetainCount(midi!))
     monitor = Monitor(self)
     midi.monitor = monitor
   }
 
   override func tearDown() {
-    midi.makeInactive()
     midi = nil
     monitor = nil
+    super.tearDown()
   }
 
   func setMonitorExpectation(_ kind: Monitor.ExpectationKind) {
@@ -27,12 +29,13 @@ class MIDITests: XCTestCase {
     waitForExpectations(timeout: 15.0)
   }
 
-  func testCreation() {
-    XCTAssertNil(MIDI.activeInstance)
-    midi.start();
-    XCTAssertEqual(midi, MIDI.activeInstance)
-    MIDI.activeInstance?.makeInactive()
-    XCTAssertNil(MIDI.activeInstance)
+  func testDeinitialized() {
+    monitor.setExpectation(.deinitialized)
+    midi.start()
+    midi.stop()
+    print(CFGetRetainCount(midi!))
+    midi = nil
+    waitForExpectations(timeout: 15.0)
   }
 
   func testStartup() {

@@ -183,11 +183,10 @@ extension MIDIPacket {
   /**
    Extract MIDI messages from the packets and process them
 
-   - parameter receiver: optional entity to process MIDI messages
-   - parameter monitor: optional entity to monitor MIDI traffic
+   - parameter midi: controller of MIDI processing
    - parameter uniqueId: the unique ID of the MIDI endpoint that sent the messages
    */
-  public func parse(receiver: Receiver?, monitor: Monitor?, uniqueId: MIDIUniqueID) {
+  public func parse(midi: MIDI, uniqueId: MIDIUniqueID) {
     let byteCount = Int(self.length)
 
     // Uff. In testing with Arturia Minilab mk II, I can sometimes generate packets with zero or really big
@@ -203,7 +202,7 @@ extension MIDIPacket {
     // packet.
     withUnsafeBytes(of: self.data) { ptr in
       var index: Int = 0
-      let receiverChannel = receiver?.channel ?? -2
+      let receiverChannel = midi.receiver?.channel ?? -2
       while index < byteCount {
         let status = ptr[index]
         index += 1
@@ -215,12 +214,10 @@ extension MIDIPacket {
         let packetChannel = Int(status & 0x0F)
 
         // We have enough information to update the channel that an endpoint is sending on
-        MIDI.activeInstance?.updateChannel(uniqueId: uniqueId, channel: packetChannel)
+        midi.updateChannel(uniqueId: uniqueId, channel: packetChannel)
         os_log(.debug, log: log, "message: %d packetChannel: %d needed: %d", command.rawValue, packetChannel, needed)
 
-        if let monitor = monitor {
-          monitor.seen(uniqueId: uniqueId, channel: packetChannel)
-        }
+        midi.monitor?.seen(uniqueId: uniqueId, channel: packetChannel)
 
         // Not enough bytes to continue on
         guard index + needed <= byteCount else { return }
@@ -231,7 +228,7 @@ extension MIDIPacket {
           continue
         }
 
-        if let receiver = receiver {
+        if let receiver = midi.receiver {
           switch command {
           case .noteOff: receiver.noteOff(note: ptr[index], velocity: ptr[index + 1])
           case .noteOn: receiver.noteOn(note: ptr[index], velocity: ptr[index + 1])

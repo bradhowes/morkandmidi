@@ -23,6 +23,7 @@ internal class Monitor: MorkAndMIDI.Monitor {
 
   enum ExpectationKind: String {
     case initialized
+    case deinitialized
     case updatedDevices
     case updatedConnections
     case seen
@@ -54,6 +55,7 @@ internal class Monitor: MorkAndMIDI.Monitor {
     fulfill(.initialized)
   }
 
+  func deinitialized() { fulfill(.deinitialized) }
   func updatedDevices() { fulfill(.updatedDevices) }
   func updatedConnections() { fulfill(.updatedConnections) }
 
