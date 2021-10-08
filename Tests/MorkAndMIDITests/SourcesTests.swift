@@ -12,7 +12,11 @@ class SourcesTests: XCTestCase {
   override func setUp() {
     super.setUp()
     midi = MIDI(clientName: "foo", uniqueId: 12_345)
+    monitor = Monitor(self)
+    midi.monitor = monitor
+    monitor.setExpectation(.initialized)
     midi.start()
+    waitForExpectations(timeout: 15.0)
   }
 
   override func tearDown() {
