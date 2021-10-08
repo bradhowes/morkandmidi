@@ -20,6 +20,9 @@ assigned to the endpoints:
 
 ```
 let midi = MorkAndMIDI.MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345)
+midi.monitor = my_monitor
+midi.receiver = my_receiver
+midi.start()
 ```
 
 Ideally, this `uniqueId` value will actually be unique to your MIDI network. However, there is no way to
