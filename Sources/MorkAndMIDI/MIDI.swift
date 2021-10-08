@@ -81,9 +81,9 @@ public final class MIDI: NSObject {
    Begin MIDI processing.
    */
   public func start() {
-    // Create client here -- doing it in initialize causes it to not work.
     createClient()
-    DispatchQueue.global(qos: .userInitiated).async { self.initialize() }
+    initialize()
+    // DispatchQueue.global(qos: .userInitiated).async { self.initialize() }
   }
 
   /**
@@ -122,7 +122,7 @@ extension MIDI {
     createVirtualDestination()
     createInputPort()
     monitor?.initialized(uniqueId: ourUniqueId)
-    MIDIRestart()
+    updateConnections()
   }
 
   private func createClient() {
