@@ -12,6 +12,6 @@ jobs:
     - name: Generate xcodeproj
       run: swift package generate-xcodeproj
     - name: Run macOS Tests
-      run: xcodebuild test -scheme 'MorkAndMIDI' -destination 'platform=macOS'
+      run: xcodebuild test -scheme 'MorkAndMIDI-Package' -destination 'platform=macOS'
     - name: Run iPhone Tests
-      run: xcodebuild test -scheme 'MorkAndMIDI' -destination 'name=iPhone 11'
+      run: xcodebuild test -scheme 'MorkAndMIDI-Package' -destination 'name=iPhone 11'
