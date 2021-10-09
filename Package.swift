@@ -1,11 +1,11 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
   name: "MorkAndMIDI",
-  platforms: [.iOS(.v12)],
+  platforms: [.iOS(.v12), .macOS(.v10_15)],
   products: [
     .library(name: "MorkAndMIDI", targets: ["MorkAndMIDI"]),
   ],

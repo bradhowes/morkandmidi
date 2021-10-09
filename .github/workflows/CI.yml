@@ -11,5 +11,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Generate xcodeproj
       run: swift package generate-xcodeproj
-    - name: Run tests
-      run: xcodebuild test -destination 'name=iPhone 11' -scheme 'MorkAndMIDI-Package'
+    - name: Run macOS Tests
+      run: xcodebuild test -scheme 'MorkAndMIDI' -destination 'platform=macOS'
+    - name: Run iPhone Tests
+      run: xcodebuild test -scheme 'MorkAndMIDI' -destination 'name=iPhone 11'
