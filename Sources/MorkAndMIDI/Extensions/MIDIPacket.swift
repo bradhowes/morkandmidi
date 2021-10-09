@@ -37,6 +37,9 @@ extension MIDIPacket {
       self.init(rawValue: highNibble == 0xF0 ? raw : highNibble)
     }
 
+    /// True if MIDI message has channel
+    var hasChannel: Bool { self.rawValue < 0xF0 }
+
     /// Number of additional bytes needed by a MIDI command. For systemExclusive, set to very large value in order to
     /// stop parsing of the MIDIPacket since we don't support systemExclusive messages.
     public var byteCount: Int {
@@ -207,26 +210,26 @@ extension MIDIPacket {
         let status = ptr[index]
         index += 1
 
-        // We have no way to know how to skip over an unknown command, so just rest of packet
-        guard let command = MsgKind(status) else { return }
-
+        // We have no way to know how to skip over an unknown command, so just drop rest of packet
+        guard let command = MsgKind(status) else { break }
         let needed = command.byteCount
-        let packetChannel = Int(status & 0x0F)
 
         // We have enough information to update the channel that an endpoint is sending on
-        midi.updateChannel(uniqueId: uniqueId, channel: packetChannel)
-        os_log(.debug, log: log, "message: %d packetChannel: %d needed: %d", command.rawValue, packetChannel, needed)
+        if command.hasChannel {
+          let packetChannel = Int(status & 0x0F)
+          os_log(.debug, log: log, "message: %d packetChannel: %d needed: %d", command.rawValue, packetChannel, needed)
+          midi.updateChannel(uniqueId: uniqueId, channel: packetChannel)
+          midi.monitor?.seen(uniqueId: uniqueId, channel: packetChannel)
 
-        midi.monitor?.seen(uniqueId: uniqueId, channel: packetChannel)
+          // Filter out messages if they come on a channel we are not listening to
+          guard receiverChannel == -1 || receiverChannel == packetChannel else {
+            index += needed
+            continue
+          }
+        }
 
         // Not enough bytes to continue on
-        guard index + needed <= byteCount else { return }
-
-        // Filter out messages if they come on a channel we are not listening to
-        guard receiverChannel == -1 || receiverChannel == packetChannel else {
-          index += needed
-          continue
-        }
+        guard index + needed <= byteCount else { break }
 
         if let receiver = midi.receiver {
           switch command {
