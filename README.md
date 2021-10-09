@@ -33,7 +33,7 @@ midi.start()
 
 Ideally, this `uniqueId` value will actually be unique to your MIDI network. However, there is no way to
 guarantee that so instead one should install a `Monitor` to observe the unique ID value that is passed to
-`Monitor.initialized` rouotine once initialization is complete. When there are no conflicts, this value 
+`Monitor.initialized` routine once initialization is complete. When there are no conflicts, this value 
 will be the same as the one given in the `MIDI` constructor. If there was a conflict, you should be
 given a value provided by the system.
 
