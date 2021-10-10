@@ -12,7 +12,7 @@ internal struct Logging {
    - parameter category: the subsystem to log under
    - returns: OSLog instance to use for subsystem logging
    */
-  public static func logger(_ category: String) -> OSLog { OSLog(subsystem: "MorkAndMIDI", category: category) }
+  internal static func logger(_ category: String) -> OSLog { OSLog(subsystem: "MorkAndMIDI", category: category) }
 }
 
 @discardableResult

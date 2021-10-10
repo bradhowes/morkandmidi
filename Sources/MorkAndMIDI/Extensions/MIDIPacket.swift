@@ -3,10 +3,10 @@
 import CoreMIDI
 import os
 
-extension MIDIPacket {
+public extension MIDIPacket {
 
   /// MIDI commands (v1)
-  public enum MsgKind: UInt8 {
+  enum MsgKind: UInt8 {
     case noteOff = 0x80
     case noteOn = 0x90
     case polyphonicKeyPressure = 0xA0
@@ -31,7 +31,7 @@ extension MIDIPacket {
 
      - parameter raw: the byte to use
      */
-    public init?(_ raw: UInt8) {
+    init?(_ raw: UInt8) {
       // Commands starting at 0xF0 require the whole byte, not just the upper 4 bits.
       let highNibble = raw & 0xF0
       self.init(rawValue: highNibble == 0xF0 ? raw : highNibble)
@@ -42,7 +42,7 @@ extension MIDIPacket {
 
     /// Number of additional bytes needed by a MIDI command. For systemExclusive, set to very large value in order to
     /// stop parsing of the MIDIPacket since we don't support systemExclusive messages.
-    public var byteCount: Int {
+    var byteCount: Int {
       switch self {
       case .noteOff: return 2
       case .noteOn: return 2
@@ -67,14 +67,14 @@ extension MIDIPacket {
   }
 }
 
-extension MIDIPacket {
+public extension MIDIPacket {
 
   private var log: OSLog { Logging.logger("MIDIPacket") }
 
   /**
    Builder of MIDIPacket instances from a collection of UInt8 values
    */
-  public struct Builder {
+  struct Builder {
 
     /// The timestamp for all of the MIDI events recorded in the data
     public let timestamp: MIDITimeStamp
@@ -176,10 +176,10 @@ extension MIDIPacket {
   }
 }
 
-extension MIDIPacket {
+public extension MIDIPacket {
 
   /// MIDIPacket instances must be aligned on 4-byte boundaries. Obtain the packet size + any padding to stay aligned
-  public var alignedByteSize: Int {
+  var alignedByteSize: Int {
     ((MemoryLayout<MIDITimeStamp>.size + MemoryLayout<UInt16>.size + Int(self.length) + 3) / 4) * 4
   }
 
@@ -189,7 +189,7 @@ extension MIDIPacket {
    - parameter midi: controller of MIDI processing
    - parameter uniqueId: the unique ID of the MIDI endpoint that sent the messages
    */
-  public func parse(midi: MIDI, uniqueId: MIDIUniqueID) {
+  func parse(midi: MIDI, uniqueId: MIDIUniqueID) {
     let byteCount = Int(self.length)
 
     // Uff. In testing with Arturia Minilab mk II, I can sometimes generate packets with zero or really big
@@ -218,7 +218,7 @@ extension MIDIPacket {
         if command.hasChannel {
           let packetChannel = Int(status & 0x0F)
           os_log(.debug, log: log, "message: %d packetChannel: %d needed: %d", command.rawValue, packetChannel, needed)
-          midi.updateChannel(uniqueId: uniqueId, channel: packetChannel)
+          midi.updateEndpointChannel(uniqueId: uniqueId, channel: packetChannel)
           midi.monitor?.seen(uniqueId: uniqueId, channel: packetChannel)
 
           // Filter out messages if they come on a channel we are not listening to

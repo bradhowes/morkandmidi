@@ -75,11 +75,14 @@ public final class MIDI: NSObject {
     if client != MIDIClientRef() { MIDIClientDispose(client) }
     monitor?.deinitialized()
   }
+}
+
+public extension MIDI {
 
   /**
    Begin MIDI processing.
    */
-  public func start() {
+  func start() {
     createClient()
     initialize()
     // DispatchQueue.global(qos: .userInitiated).async { self.initialize() }
@@ -88,7 +91,7 @@ public final class MIDI: NSObject {
   /**
    End MIDI processing.
    */
-  public func stop() {
+  func stop() {
     if inputPort != MIDIPortRef() {
       MIDIPortDispose(inputPort)
       inputPort = MIDIPortRef()
@@ -99,9 +102,6 @@ public final class MIDI: NSObject {
       virtualMidiIn = MIDIEndpointRef()
     }
   }
-}
-
-extension MIDI {
 
   /**
    Associate a channel number with the unique ID of a connection endpoint.
@@ -109,14 +109,14 @@ extension MIDI {
    - parameter uniqueId: the uniqueId of the endpoints
    - parameter channel: the channel number
    */
-  public func updateChannel(uniqueId: MIDIUniqueID, channel: Int) {
+  func updateEndpointChannel(uniqueId: MIDIUniqueID, channel: Int) {
     channels[uniqueId] = channel
   }
 }
 
-extension MIDI {
+private extension MIDI {
 
-  private func initialize() {
+  func initialize() {
     enableNetwork()
     createVirtualDestination()
     createInputPort()
@@ -124,7 +124,7 @@ extension MIDI {
     updateConnections()
   }
 
-  private func createClient() {
+  func createClient() {
     let err = MIDIClientCreateWithBlock(clientName as CFString, &client) { [weak self] in
       guard let self = self else { return }
       let messageID = $0.pointee.messageID
@@ -138,7 +138,7 @@ extension MIDI {
     logErr(log, "MIDIClientCreateWithBlock", err)
   }
 
-  private func updateConnections() {
+  func updateConnections() {
     os_log(.info, log: log, "updateConnections")
 
     let active = Sources()
@@ -151,7 +151,7 @@ extension MIDI {
     }
   }
 
-  private func connectSource(endpoint: MIDIEndpointRef) -> Bool {
+  func connectSource(endpoint: MIDIEndpointRef) -> Bool {
     let name = endpoint.displayName
     let uniqueId = endpoint.uniqueId
     guard uniqueId != ourUniqueId && !activeConnections.contains(uniqueId) else {
@@ -168,7 +168,7 @@ extension MIDI {
     return true
   }
 
-  private func disconnectSource(uniqueId: MIDIUniqueID) -> Bool {
+  func disconnectSource(uniqueId: MIDIUniqueID) -> Bool {
     guard activeConnections.contains(uniqueId) else {
       os_log(.debug, log: log, "not connected to %d", uniqueId)
       return false
@@ -186,19 +186,20 @@ extension MIDI {
     return true
   }
 
-  private func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
+  func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
     let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
     refCon.initialize(to: uniqueId)
     return refCon
   }
 
-  private func unboxRefCon(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
+  func unboxRefCon(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
     guard let uniqueId = refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee else { fatalError() }
     return uniqueId
   }
 
-  private func createVirtualDestination() {
-    let err = MIDIDestinationCreateWithBlock(client, inputPortName as CFString, &virtualMidiIn) { [weak self] packetList, refCon in
+  func createVirtualDestination() {
+    let err = MIDIDestinationCreateWithBlock(client, inputPortName as CFString,
+                                             &virtualMidiIn) { [weak self] packetList, refCon in
       guard let self = self else { return }
       self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
     }
@@ -208,8 +209,9 @@ extension MIDI {
     }
   }
 
-  private func createInputPort() {
-    let err = MIDIInputPortCreateWithBlock(client, inputPortName as CFString, &inputPort) { [weak self] packetList, refCon in
+  func createInputPort() {
+    let err = MIDIInputPortCreateWithBlock(client, inputPortName as CFString,
+                                           &inputPort) { [weak self] packetList, refCon in
       guard let self = self else { return }
       self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
     }
@@ -219,7 +221,7 @@ extension MIDI {
     }
   }
 
-  private func initializeInput(_ endpoint: MIDIEndpointRef) {
+  func initializeInput(_ endpoint: MIDIEndpointRef) {
     if logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyUniqueID)",
               MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, ourUniqueId)) {
       ourUniqueId = endpoint.uniqueId
@@ -237,7 +239,7 @@ extension MIDI {
            MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyMaxReceiveChannels, 16))
   }
 
-  private func enableNetwork() {
+  func enableNetwork() {
     let mns = MIDINetworkSession.default()
     mns.isEnabled = true
     mns.connectionPolicy = .anyone
@@ -248,7 +250,7 @@ extension MIDI {
     os_log(.debug, log: log, "net session localName: %{public}s", mns.localName)
   }
 
-  private func processPackets(packetList: MIDIPacketList, uniqueId: MIDIUniqueID) {
+  func processPackets(packetList: MIDIPacketList, uniqueId: MIDIUniqueID) {
     os_log(.debug, log: log, "processPackets - numPackets: %d uniqueId: %d", packetList.numPackets, uniqueId)
     packetList.parse(midi: self, uniqueId: uniqueId)
   }

@@ -14,6 +14,9 @@ public protocol Monitor: AnyObject {
    */
   func initialized(uniqueId: MIDIUniqueID)
 
+  /**
+   Notification that the MIDI system has been torn down.
+   */
   func deinitialized()
 
   /**
