@@ -42,7 +42,7 @@ given a value provided by the system.
 The `Receiver` protocol defines functions that will be called for MIDI commands that arrive over USB or the network.
 Since they are all optional, you only need to implement the commands you want.
 
-Note that at the moment, SysExc (0xF0) commands are not support and will be silently ignored. I have no need for them,
+Note that at the moment, SysExc (0xF0) commands are not supported and are silently ignored. I have no need for them,
 but supporting them should not be too difficult a task -- you just need to buffer MIDI packets until it is complete.
 
 # Connectivity
