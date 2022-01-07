@@ -17,7 +17,7 @@ Currently just supports some MIDI v1 messages. However, it also provides enhance
 
 This package basically sets up MIDI and connects to all available inputs it finds. Connection state can be monitored by
 installing a `Monitor` instance, and actual MIDI commands can be observed by installing a `Receiver` instance.
-Everything else should be handle automatically by the package.
+Everything else should be handled automatically by the package.
 
 # To Use
 
