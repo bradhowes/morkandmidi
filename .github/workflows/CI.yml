@@ -9,9 +9,14 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Generate xcodeproj
-      run: swift package generate-xcodeproj
-    - name: Run macOS Tests
-      run: xcodebuild test -scheme 'MorkAndMIDI-Package' -destination 'platform=macOS'
-    - name: Run iPhone Tests
-      run: xcodebuild test -scheme 'MorkAndMIDI-Package' -destination 'name=iPhone 11'
+    - name: Build, test, coverage
+      run: make
+    - name: Create coverage badge
+      uses: schneegans/dynamic-badges-action@v1.1.0
+      with:
+        auth: ${{ secrets.GIST_UPDATE }}
+        gistID: 1190477db6ce37d6f5d8e8be5ac6b752
+        filename: MorkAndMIDI-coverage.json
+        label: Coverage
+        message: ${{ env.PERCENTAGE }}
+        color: success
