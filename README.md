@@ -6,7 +6,7 @@
 
 # MorkAndMIDI
 
-A really thin Swift layer on top of [CoreMIDI](https://developer.apple.com/documentation/coremidi)
+A really thin Swift layer on top of [Core MIDI](https://developer.apple.com/documentation/coremidi)
 that opens a virtual MIDI destination and port and connects to any MIDI endpoints that appear on the network, 
 no questions asked.
 
