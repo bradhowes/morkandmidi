@@ -6,11 +6,5 @@ xcuserdata/
 DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 
-ios_cov.txt
-macos_cov.txt
-coverage_ios
-coverage_macos
-coverage_ios.xcresult/
-coverage_macos.xcresult/
-ios_percentage.txt
-macos_percentage.txt
+cov.txt
+percentage.txt
