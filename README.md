@@ -1,4 +1,5 @@
 [![Swift](https://github.com/bradhowes/morkandmidi/workflows/CI/badge.svg)]()
+[![COV](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/bradhowes/1190477db6ce37d6f5d8e8be5ac6b752/raw/MorkAndMIDI-coverage.json)](https://github.com/bradhowes/morkandmidi/blob/main/.github/workflows/CI.yml)
 [![License Badge]][License]
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fbradhowes%2Fmorkandmidi%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/bradhowes/morkandmidi)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fbradhowes%2Fmorkandmidi%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/bradhowes/morkandmidi)
