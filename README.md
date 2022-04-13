@@ -8,7 +8,7 @@
 # MorkAndMIDI
 
 A really thin Swift layer on top of [Core MIDI](https://developer.apple.com/documentation/coremidi)
-that opens a virtual MIDI destination and port and connects to any MIDI endpoints that appear on the network, 
+that opens a virtual MIDI destination and port and connects to any MIDI endpoints that appear on the network,
 no questions asked.
 
 Currently just supports some MIDI v1 messages. However, it also provides enhancements to
@@ -25,7 +25,7 @@ Everything else should be handled automatically by the package.
 Create a new MIDI instance passing in a name to use for the endpoints that it will create, and a unique ID that will be
 assigned to the endpoints:
 
-```
+```swift
 let midi = MorkAndMIDI.MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345)
 midi.monitor = my_monitor
 midi.receiver = my_receiver
@@ -34,7 +34,7 @@ midi.start()
 
 Ideally, this `uniqueId` value will actually be unique to your MIDI network. However, there is no way to
 guarantee that so instead one should install a `Monitor` to observe the unique ID value that is passed to
-`Monitor.initialized` routine once initialization is complete. When there are no conflicts, this value 
+`Monitor.initialized` routine once initialization is complete. When there are no conflicts, this value
 will be the same as the one given in the `MIDI` constructor. If there was a conflict, you should be
 given a value provided by the system.
 
