@@ -20,6 +20,73 @@ class MIDIPacketTests: XCTestCase {
     super.tearDown()
   }
 
+  func testMsgByteCounts() {
+    XCTAssertEqual(MIDIPacket.MsgKind.tuneRequest.byteCount, 0)
+    XCTAssertEqual(MIDIPacket.MsgKind.timingClock.byteCount, 0)
+    XCTAssertEqual(MIDIPacket.MsgKind.startCurrentSequence.byteCount, 0)
+    XCTAssertEqual(MIDIPacket.MsgKind.continueCurrentSequence.byteCount, 0)
+    XCTAssertEqual(MIDIPacket.MsgKind.stopCurrentSequence.byteCount, 0)
+    XCTAssertEqual(MIDIPacket.MsgKind.activeSensing.byteCount, 0)
+    XCTAssertEqual(MIDIPacket.MsgKind.reset.byteCount, 0)
+
+    XCTAssertEqual(MIDIPacket.MsgKind.programChange.byteCount, 1)
+    XCTAssertEqual(MIDIPacket.MsgKind.channelPressure.byteCount, 1)
+    XCTAssertEqual(MIDIPacket.MsgKind.timeCodeQuarterFrame.byteCount, 1)
+    XCTAssertEqual(MIDIPacket.MsgKind.songSelect.byteCount, 1)
+
+    XCTAssertEqual(MIDIPacket.MsgKind.noteOff.byteCount, 2)
+    XCTAssertEqual(MIDIPacket.MsgKind.noteOn.byteCount, 2)
+    XCTAssertEqual(MIDIPacket.MsgKind.polyphonicKeyPressure.byteCount, 2)
+    XCTAssertEqual(MIDIPacket.MsgKind.controlChange.byteCount, 2)
+    XCTAssertEqual(MIDIPacket.MsgKind.pitchBendChange.byteCount, 2)
+    XCTAssertEqual(MIDIPacket.MsgKind.songPositionPointer.byteCount, 2)
+
+    XCTAssertEqual(MIDIPacket.MsgKind.systemExclusive.byteCount, 65_537)
+  }
+
+  func testBuilderWithNoData() {
+    let builder = MIDIPacket.Builder(timestamp: 123, msg: .reset)
+    XCTAssertEqual(builder.timestamp, 123)
+    let packet = builder.packet
+    XCTAssertEqual(packet.length, 1)
+    XCTAssertEqual(packet.data.0, 255)
+  }
+
+  func testBuilderWithOneByteData() {
+    var builder = MIDIPacket.Builder(timestamp: 123, msg: .channelPressure, data1: 33)
+    XCTAssertEqual(builder.timestamp, 123)
+    var packet = builder.packet
+    XCTAssertEqual(packet.length, 2)
+    XCTAssertEqual(packet.data.0, 208)
+    XCTAssertEqual(packet.data.1, 33)
+    builder.add(msgKind: .channelPressure, data1: 55)
+    packet = builder.packet
+    XCTAssertEqual(packet.length, 4)
+    XCTAssertEqual(packet.data.0, 208)
+    XCTAssertEqual(packet.data.1, 33)
+    XCTAssertEqual(packet.data.2, 208)
+    XCTAssertEqual(packet.data.3, 55)
+  }
+
+  func testBuilderWithTwoByteData() {
+    var builder = MIDIPacket.Builder(timestamp: 123, msg: .pitchBendChange, data1: 1, data2: 2)
+    XCTAssertEqual(builder.timestamp, 123)
+    var packet = builder.packet
+    XCTAssertEqual(packet.length, 3)
+    XCTAssertEqual(packet.data.0, 224)
+    XCTAssertEqual(packet.data.1, 1)
+    XCTAssertEqual(packet.data.2, 2)
+    builder.add(msgKind: .pitchBendChange, data1: 3, data2: 4)
+    packet = builder.packet
+    XCTAssertEqual(packet.length, 6)
+    XCTAssertEqual(packet.data.0, 224)
+    XCTAssertEqual(packet.data.1, 1)
+    XCTAssertEqual(packet.data.2, 2)
+    XCTAssertEqual(packet.data.3, 224)
+    XCTAssertEqual(packet.data.4, 3)
+    XCTAssertEqual(packet.data.5, 4)
+  }
+
   func testBuilder() {
     let builder = MIDIPacket.Builder(timestamp: 123, data: [1, 2, 3])
     let packet = builder.packet
@@ -35,9 +102,10 @@ class MIDIPacketTests: XCTestCase {
     builder.add(data: [4, 5, 6, 7])
     builder.add(data: [])
     builder.add(data: [8])
+    builder.add(msgKind: .reset)
 
     let packet = builder.packet
-    XCTAssertEqual(packet.length, 8)
+    XCTAssertEqual(packet.length, 9)
     XCTAssertEqual(packet.timeStamp, 456)
     XCTAssertEqual(packet.data.0, 1)
     XCTAssertEqual(packet.data.1, 2)
@@ -47,6 +115,7 @@ class MIDIPacketTests: XCTestCase {
     XCTAssertEqual(packet.data.5, 6)
     XCTAssertEqual(packet.data.6, 7)
     XCTAssertEqual(packet.data.7, 8)
+    XCTAssertEqual(packet.data.8, 255)
   }
 
   func testParser() {

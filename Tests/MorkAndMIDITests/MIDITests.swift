@@ -41,6 +41,12 @@ class MIDITests: XCTestCase {
     setMonitorExpectation(.initialized)
   }
 
+  func testMIDIObjectReDisplayName() {
+    let ref: MIDIObjectRef = 0
+    let name = ref.displayName
+    XCTAssertEqual(name, "nil")
+  }
+
   func flaky_testUpdatedDevices() {
     setMonitorExpectation(.updatedDevices)
     // XCTAssertEqual(midi.devices.count, 1)

@@ -85,7 +85,6 @@ public extension MIDI {
   func start() {
     createClient()
     initialize()
-    // DispatchQueue.global(qos: .userInitiated).async { self.initialize() }
   }
 
   /**
@@ -135,7 +134,7 @@ private extension MIDI {
       }
     }
 
-    logErr(log, "MIDIClientCreateWithBlock", err)
+    logIfErr(log, "MIDIClientCreateWithBlock", err)
   }
 
   func updateConnections() {
@@ -162,8 +161,7 @@ private extension MIDI {
     activeConnections.insert(uniqueId)
 
     os_log(.info, log: log, "connecting endpoint %d '%{public}s'", uniqueId, name)
-    logErr(log, "MIDIPortConnectSource", MIDIPortConnectSource(inputPort, endpoint, boxUniqueId(uniqueId)))
-    logErr(log, "MIDIPortConnectSource", MIDIPortConnectSource(virtualMidiIn, endpoint, boxUniqueId(uniqueId)))
+    logIfErr(log, "MIDIPortConnectSource", MIDIPortConnectSource(virtualMidiIn, endpoint, boxUniqueId(uniqueId)))
 
     return true
   }
@@ -181,7 +179,7 @@ private extension MIDI {
     }
 
     os_log(.info, log: log, "disconnecting endpoint %d '%{public}s'", uniqueId, endpoint.displayName)
-    logErr(log, "MIDIPortDisconnectSource", MIDIPortDisconnectSource(inputPort, endpoint))
+    logIfErr(log, "MIDIPortDisconnectSource", MIDIPortDisconnectSource(inputPort, endpoint))
 
     return true
   }
@@ -204,7 +202,7 @@ private extension MIDI {
       self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
     }
 
-    if !logErr(log, "MIDIDestinationCreateWithBlock", err) {
+    if !logIfErr(log, "MIDIDestinationCreateWithBlock", err) {
       initializeInput(virtualMidiIn)
     }
   }
@@ -216,27 +214,30 @@ private extension MIDI {
       self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
     }
 
-    if !logErr(log, "MIDIInputPortCreateWithBlock", err) {
+    if !logIfErr(log, "MIDIInputPortCreateWithBlock", err) {
       initializeInput(inputPort)
     }
   }
 
   func initializeInput(_ endpoint: MIDIEndpointRef) {
-    if logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyUniqueID)",
-              MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, ourUniqueId)) {
-      ourUniqueId = endpoint.uniqueId
+    let newUniqueId = endpoint.uniqueId
+
+    // Try to reuse our previous uniqueId. If that fails, use the new one
+    if logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyUniqueID)",
+                MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, ourUniqueId)) {
+      ourUniqueId = newUniqueId
     }
 
-    logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyAdvanceScheduleTimeMuSec)",
-           MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyAdvanceScheduleTimeMuSec, 1))
-    logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesClock)",
-           MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesClock, 1))
-    logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesNotes)",
-           MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesNotes, 1))
-    logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesProgramChanges)",
-           MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesProgramChanges, 1))
-    logErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyMaxReceiveChannels)",
-           MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyMaxReceiveChannels, 16))
+    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyAdvanceScheduleTimeMuSec)",
+             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyAdvanceScheduleTimeMuSec, 1))
+    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesClock)",
+             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesClock, 1))
+    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesNotes)",
+             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesNotes, 1))
+    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesProgramChanges)",
+             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesProgramChanges, 1))
+    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyMaxReceiveChannels)",
+             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyMaxReceiveChannels, 16))
   }
 
   func enableNetwork() {

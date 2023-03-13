@@ -68,6 +68,24 @@ public protocol Receiver: AnyObject {
    - parameter value: the new pitch-bend value to use
    */
   func pitchBendChange(value: UInt16)
+
+  func timeCodeQuarterFrame(value: UInt8)
+
+  func songPositionPointer(value: UInt16)
+
+  func songSelect(value: UInt8)
+
+  func tuneRequest()
+
+  func timingClock()
+
+  func startCurrentSequence()
+
+  func continueCurrentSequence()
+
+  func stopCurrentSequence()
+
+  func activeSensing()
 }
 
 public extension Receiver {
@@ -79,4 +97,13 @@ public extension Receiver {
   func programChange(program: UInt8) {}
   func channelPressure(pressure: UInt8) {}
   func pitchBendChange(value: UInt16) {}
+  func timeCodeQuarterFrame(value: UInt8) {}
+  func songPositionPointer(value: UInt16) {}
+  func songSelect(value: UInt8) {}
+  func tuneRequest() {}
+  func timingClock() {}
+  func startCurrentSequence() {}
+  func continueCurrentSequence() {}
+  func stopCurrentSequence() {}
+  func activeSensing() {}
 }

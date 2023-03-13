@@ -10,7 +10,7 @@ internal extension MIDIObjectRef {
   /// Obtain the display name for a MIDI object. If not defined, return "nil"
   var displayName: String {
     var param: Unmanaged<CFString>?
-    let failed = logErr(log, "MIDIObjectGetStringProperty(kMIDIPropertyDisplayName)",
+    let failed = logIfErr(log, "MIDIObjectGetStringProperty(kMIDIPropertyDisplayName)",
                         MIDIObjectGetStringProperty(self, kMIDIPropertyDisplayName, &param))
     return failed ? "nil" : param!.takeUnretainedValue() as String
   }
@@ -18,7 +18,7 @@ internal extension MIDIObjectRef {
   /// Obtain the unique ID for a MIDI object
   var uniqueId: MIDIUniqueID {
     var param: MIDIUniqueID = MIDIUniqueID()
-    logErr(log, "MIDIObjectGetIntegerProperty(kMIDIPropertyUniqueID)",
+    logIfErr(log, "MIDIObjectGetIntegerProperty(kMIDIPropertyUniqueID)",
            MIDIObjectGetIntegerProperty(self, kMIDIPropertyUniqueID, &param))
     return param
   }

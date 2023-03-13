@@ -16,10 +16,8 @@ internal struct Logging {
 }
 
 @discardableResult
-internal func logErr(_ log: OSLog, _ name: String, _ err: OSStatus) -> Bool {
-  if err != noErr {
-    os_log(.error, log: log, "%{public}s - %d %{public}s", name, err, err.tag)
-    return true
-  }
-  return false
+internal func logIfErr(_ log: OSLog, _ name: String, _ err: OSStatus) -> Bool {
+  guard err != noErr else { return false }
+  os_log(.error, log: log, "%{public}s - %d %{public}s", name, err, err.tag)
+  return true
 }
