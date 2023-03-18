@@ -47,6 +47,13 @@ class MIDITests: XCTestCase {
     XCTAssertEqual(name, "nil")
   }
 
+  func testEndToEnd() {
+    var client: MIDIClientRef = .init()
+    var err = MIDIClientCreateWithBlock("testClient" as CFString, &client) { [weak self] _ in }
+    var source: MIDIEndpointRef = .init()
+    err = MIDISourceCreateWithProtocol(client, "testClient" as CFString, ._1_0, &source)
+  }
+
   func flaky_testUpdatedDevices() {
     setMonitorExpectation(.updatedDevices)
     // XCTAssertEqual(midi.devices.count, 1)

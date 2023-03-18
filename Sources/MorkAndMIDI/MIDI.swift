@@ -13,6 +13,8 @@ public final class MIDI: NSObject {
   private var ourUniqueId: MIDIUniqueID
   private let clientName: String
   private lazy var inputPortName = clientName + " In"
+  private let midiProtocol: MIDIProtocolID
+  private let parser = MIDI2Parser()
 
   private var client: MIDIClientRef = MIDIClientRef()
   private var virtualMidiIn: MIDIEndpointRef = MIDIEndpointRef()
@@ -61,9 +63,10 @@ public final class MIDI: NSObject {
   /**
    Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic
    */
-  public init(clientName: String, uniqueId: MIDIUniqueID) {
+  public init(clientName: String, uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._1_0) {
     self.clientName = clientName
     self.ourUniqueId = uniqueId
+    self.midiProtocol = midiProtocol
     super.init()
   }
 
@@ -196,10 +199,10 @@ private extension MIDI {
   }
 
   func createVirtualDestination() {
-    let err = MIDIDestinationCreateWithBlock(client, inputPortName as CFString,
-                                             &virtualMidiIn) { [weak self] packetList, refCon in
+    let err = MIDIDestinationCreateWithProtocol(client, inputPortName as CFString, midiProtocol,
+                                                &virtualMidiIn) { [weak self] eventListPointer, refCon in
       guard let self = self else { return }
-      self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
+      self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
     }
 
     if !logIfErr(log, "MIDIDestinationCreateWithBlock", err) {
@@ -207,11 +210,17 @@ private extension MIDI {
     }
   }
 
+  func processEventList(eventList: UnsafePointer<MIDIEventList>, uniqueId: MIDIUniqueID) {
+    eventList.unsafeSequence().forEach { eventPacket in
+      parser.parse(midi: self, uniqueId: uniqueId, words: eventPacket.words())
+    }
+  }
+
   func createInputPort() {
-    let err = MIDIInputPortCreateWithBlock(client, inputPortName as CFString,
-                                           &inputPort) { [weak self] packetList, refCon in
+    let err = MIDIInputPortCreateWithProtocol(client, inputPortName as CFString, midiProtocol,
+                                              &inputPort) { [weak self] eventListPointer, refCon in
       guard let self = self else { return }
-      self.processPackets(packetList: packetList.pointee, uniqueId: self.unboxRefCon(refCon))
+      self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
     }
 
     if !logIfErr(log, "MIDIInputPortCreateWithBlock", err) {
@@ -251,8 +260,4 @@ private extension MIDI {
     os_log(.debug, log: log, "net session localName: %{public}s", mns.localName)
   }
 
-  func processPackets(packetList: MIDIPacketList, uniqueId: MIDIUniqueID) {
-    os_log(.debug, log: log, "processPackets - numPackets: %d uniqueId: %d", packetList.numPackets, uniqueId)
-    packetList.parse(midi: self, uniqueId: uniqueId)
-  }
 }

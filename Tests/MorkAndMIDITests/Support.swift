@@ -6,61 +6,101 @@ import XCTest
 
 internal class Receiver: MorkAndMIDI.Receiver {
 
-  struct Event: Equatable {
-    let cmd: UInt8
-    let data1: UInt8
-    let data2: UInt8
-  }
-
   var channel: Int = -1
-  var received = [Event]()
+  var received = [String]()
 
-  func noteOn(note: UInt8, velocity: UInt8) { self.received.append(Event(cmd: 0x90, data1: note, data2: velocity)) }
-  func noteOff(note: UInt8, velocity: UInt8) { self.received.append(Event(cmd: 0x80, data1: note, data2: velocity)) }
+  func noteOff(note: UInt8, velocity: UInt8) {
+    received.append("noteOff \(note) \(velocity)")
+  }
+  func noteOff2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {
+    received.append("noteOff2 \(note) \(velocity) \(attributeType) \(attributeData)")
+  }
+  func noteOn(note: UInt8, velocity: UInt8) {
+    received.append("noteOn \(note) \(velocity)")
+  }
+  func noteOn2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {
+    received.append("noteOn2 \(note) \(velocity) \(attributeType) \(attributeData)")
+  }
   func polyphonicKeyPressure(note: UInt8, pressure: UInt8) {
-    self.received.append(Event(cmd: 0xA0, data1: note, data2: pressure))
+    received.append("polyphonicKeyPressure \(note) \(pressure)")
+  }
+  func polyphonicKeyPressure2(note: UInt8, pressure: UInt32) {
+    received.append("polyphonicKeyPressure2 \(note) \(pressure)")
   }
   func controlChange(controller: UInt8, value: UInt8) {
-    self.received.append(Event(cmd: 0xB0, data1: controller, data2: value))
+    received.append("controlChange \(controller) \(value)")
+  }
+  func controlChange2(controller: UInt8, value: UInt32) {
+    received.append("controlChange2 \(controller) \(value)")
   }
   func programChange(program: UInt8) {
-    self.received.append(Event(cmd: 0xC0, data1: program, data2: 0))
+    received.append("programChange \(program)")
+  }
+  func programChange2(program: UInt8, bank: UInt16) {
+    received.append("programChange2 \(program) \(bank)")
   }
   func channelPressure(pressure: UInt8) {
-    self.received.append(Event(cmd: 0xD0, data1: pressure, data2: 0))
+    received.append("channelPressure \(pressure)")
+  }
+  func channelPressure2(pressure: UInt32) {
+    received.append("channelPressure2 \(pressure)")
   }
   func pitchBendChange(value: UInt16) {
-    self.received.append(Event(cmd: 0xE0, data1: UInt8(value >> 7), data2: UInt8(value & 0x7F)))
+    received.append("pitchBendChange \(value)")
+  }
+  func pitchBendChange2(value: UInt32) {
+    received.append("pitchBendChange2 \(value)")
   }
   func timeCodeQuarterFrame(value: UInt8) {
-    self.received.append(Event(cmd: 0xF1, data1: value, data2: 0))
+    received.append("timeCodeQuarterFrame \(value)")
   }
   func songPositionPointer(value: UInt16) {
-    self.received.append(Event(cmd: 0xF2, data1: UInt8(value >> 7), data2: UInt8(value & 0x7F)))
+    received.append("songPositionPointer \(value)")
   }
   func songSelect(value: UInt8) {
-    self.received.append(Event(cmd: 0xF3, data1: value, data2: 0))
+    received.append("songSelect \(value)")
   }
   func tuneRequest() {
-    self.received.append(Event(cmd: 0xF6, data1: 0, data2: 0))
+    received.append("tuneRequest")
   }
   func timingClock() {
-    self.received.append(Event(cmd: 0xF8, data1: 0, data2: 0))
+    received.append("timingClock")
   }
   func startCurrentSequence() {
-    self.received.append(Event(cmd: 0xFA, data1: 0, data2: 0))
+    received.append("startCurrentSequence")
   }
   func continueCurrentSequence() {
-    self.received.append(Event(cmd: 0xFB, data1: 0, data2: 0))
+    received.append("continueCurrentSequence")
   }
   func stopCurrentSequence() {
-    self.received.append(Event(cmd: 0xFC, data1: 0, data2: 0))
+    received.append("stopCurrentSequence")
   }
   func activeSensing() {
-    self.received.append(Event(cmd: 0xFE, data1: 0, data2: 0))
+    received.append("activeSensing")
   }
-  func allNotesOff() {
-    self.received.append(Event(cmd: 0xFF, data1: 0, data2: 0))
+  func reset() {
+    received.append("reset")
+  }
+  func registeredPerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) {
+    received.append("registeredPerNoteControllerChange \(note) \(controller) \(value)")
+  }
+  func assignablePerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) {
+    received.append("assignablePerNoteControllerChange \(note) \(controller) \(value)")
+  }
+  func registeredControllerChange(controller: UInt16, value: UInt32) {
+    received.append("registeredControllerChange \(controller) \(value)")
+  }
+  func assignableControllerChange(controller: UInt16, value: UInt32) {
+    received.append("assignableControllerChange \(controller) \(value)")
+  }
+  func relativeRegisteredControllerChange(controller: UInt16, value: Int32) {
+    received.append("relativeRegisteredControllerChange \(controller) \(value)")
+  }
+  func relativeAssignableControllerChange(controller: UInt16, value: Int32) {
+    received.append("relativeAssignableControllerChange \(controller) \(value)")
+  }
+  func perNoteManagement(note: UInt8, detach: Bool, reset: Bool) {
+    received.append("perNoteManagement \(note) \(detach) \(reset)")
   }
 }
 
