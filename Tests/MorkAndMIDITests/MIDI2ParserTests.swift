@@ -13,7 +13,7 @@ class MIDI2ParserTests: XCTestCase {
 
   override func setUp() {
     super.setUp()
-    receiver = .init()
+    receiver = .init(self)
     midi = MIDI(clientName: "midi2parserTests", uniqueId: 123)
     midi.receiver = receiver
     packetBuilder = MIDIEventPacket.Builder(maximumNumberMIDIWords: 64)
@@ -21,25 +21,11 @@ class MIDI2ParserTests: XCTestCase {
     parser = MIDI2Parser()
   }
 
-  func testUInt32Bytes() {
-    let z = UInt32(0x12_34_56_78)
-    XCTAssertEqual(z.b0, 0x12)
-    XCTAssertEqual(z.b1, 0x34)
-    XCTAssertEqual(z.b2, 0x56)
-    XCTAssertEqual(z.b3, 0x78)
-    let y = UInt32(0x41_A3_FF_FF)
-    XCTAssertEqual(y.b0, 0x41)
-    XCTAssertEqual(y.b1, 0xA3)
-    XCTAssertEqual(y.b2, 0xFF)
-    XCTAssertEqual(y.b3, 0xFF)
+  override func tearDown() {
+    midi.stop()
+    midi = nil
+    super.tearDown()
   }
-
-  func testUInt32Shorts() {
-    let z = UInt32(0x12_34_56_78)
-    XCTAssertEqual(z.s0, 0x1234)
-    XCTAssertEqual(z.s1, 0x5678)
-  }
-
   func testUniversalMessageType() {
     XCTAssertEqual(MIDI2Parser.UniversalMessageType.from(word: UInt32(0x01_23_45_67)), .utility)
     XCTAssertEqual(MIDI2Parser.UniversalMessageType.from(word: UInt32(0x11_23_45_67)), .systemCommonAndRealTime)

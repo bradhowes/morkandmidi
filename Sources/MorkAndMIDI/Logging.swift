@@ -15,9 +15,12 @@ internal struct Logging {
   internal static func logger(_ category: String) -> OSLog { OSLog(subsystem: "MorkAndMIDI", category: category) }
 }
 
-@discardableResult
-internal func logIfErr(_ log: OSLog, _ name: String, _ err: OSStatus) -> Bool {
-  guard err != noErr else { return false }
-  os_log(.error, log: log, "%{public}s - %d %{public}s", name, err, err.tag)
-  return true
+internal extension OSStatus {
+
+  @discardableResult
+  func wasSuccessful(_ log: OSLog, _ name: String) -> Bool {
+    guard self != noErr else { return true }
+    os_log(.error, log: log, "%{public}s - %d %{public}s", name, self, self.tag)
+    return false
+  }
 }

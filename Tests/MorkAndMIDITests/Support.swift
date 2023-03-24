@@ -6,20 +6,49 @@ import XCTest
 
 internal class Receiver: MorkAndMIDI.Receiver {
 
+  enum ExpectationKind: String {
+    case noteOff
+    case noteOn
+  }
+
+  weak var test: XCTestCase?
   var channel: Int = -1
   var received = [String]()
+  var expectationKind: ExpectationKind!
+  var expectation: XCTestExpectation!
+
+  init(_ test: XCTestCase) {
+    self.test = test
+  }
+
+  func setExpectation(_ kind: ExpectationKind) {
+    self.expectationKind = kind
+    self.expectation = test?.expectation(description: kind.rawValue)
+  }
+
+  func fulfill(_ kind: ExpectationKind) {
+    guard expectation != nil else { return }
+    print("fulfill: ", kind.rawValue, expectationKind.rawValue)
+    if kind == expectationKind {
+      expectation.fulfill()
+    }
+  }
 
   func noteOff(note: UInt8, velocity: UInt8) {
     received.append("noteOff \(note) \(velocity)")
+    fulfill(.noteOff)
   }
   func noteOff2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {
     received.append("noteOff2 \(note) \(velocity) \(attributeType) \(attributeData)")
+    fulfill(.noteOff)
   }
   func noteOn(note: UInt8, velocity: UInt8) {
     received.append("noteOn \(note) \(velocity)")
+    fulfill(.noteOn)
   }
   func noteOn2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {
     received.append("noteOn2 \(note) \(velocity) \(attributeType) \(attributeData)")
+    fulfill(.noteOn)
   }
   func polyphonicKeyPressure(note: UInt8, pressure: UInt8) {
     received.append("polyphonicKeyPressure \(note) \(pressure)")

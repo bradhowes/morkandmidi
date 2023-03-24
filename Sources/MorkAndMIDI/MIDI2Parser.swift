@@ -29,7 +29,7 @@ public struct MIDI2Parser {
       }
     }
 
-    static func from(word: UInt32) -> UniversalMessageType? { .init(rawValue: word.b0.nibbles.high) }
+    static func from(word: UInt32) -> UniversalMessageType? { .init(rawValue: word.b0.highNibble) }
   }
 
   /// MIDI commands (v1 and v2)
@@ -49,7 +49,7 @@ public struct MIDI2Parser {
     case pitchBendChange = 14
     case perNoteManagement = 15
 
-    static func from(word: UInt32) -> ChannelVoiceMessage? { .init(rawValue: word.b1.nibbles.high) }
+    static func from(word: UInt32) -> ChannelVoiceMessage? { .init(rawValue: word.b1.highNibble) }
   }
 
   enum SystemCommonAndRealTimeMessage: UInt8 {
@@ -83,7 +83,7 @@ public extension MIDI2Parser {
     let receiverChannel = midi.receiver?.channel ?? -2
 
     func acceptsMessageChannel(_ word: UInt32) -> Bool {
-      let messageChannel = Int(word.b1.nibbles.low)
+      let messageChannel = Int(word.b1.lowNibble)
       midi.updateEndpointChannel(uniqueId: uniqueId, channel: messageChannel)
       midi.monitor?.seen(uniqueId: uniqueId, channel: messageChannel)
       return receiverChannel == -1 || receiverChannel == messageChannel

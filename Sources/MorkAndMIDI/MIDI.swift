@@ -17,12 +17,13 @@ public final class MIDI: NSObject {
   private let parser = MIDI2Parser()
 
   private var client: MIDIClientRef = MIDIClientRef()
+  private var inputPort: MIDIPortRef = MIDIEndpointRef()
   private var virtualMidiIn: MIDIEndpointRef = MIDIEndpointRef()
-  private var inputPort: MIDIPortRef = MIDIPortRef()
 
   /// Collection of endpoint IDs and the last channel ID found in a MIDI message from the endpoint
   @objc dynamic
   public private(set) var channels = [MIDIUniqueID: Int]()
+  public private(set) var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
 
   /// Collection of connection IDs that are connected to our virtual endpoint.
   @objc dynamic
@@ -94,9 +95,9 @@ public extension MIDI {
    End MIDI processing.
    */
   func stop() {
-    if inputPort != MIDIPortRef() {
-      MIDIPortDispose(inputPort)
-      inputPort = MIDIPortRef()
+    if inputPort != MIDIEndpointRef() {
+      MIDIEndpointDispose(inputPort)
+      inputPort = MIDIEndpointRef()
     }
 
     if virtualMidiIn != MIDIEndpointRef() {
@@ -119,9 +120,9 @@ public extension MIDI {
 private extension MIDI {
 
   func initialize() {
-    enableNetwork()
-    createVirtualDestination()
+    enableNetworkSession()
     createInputPort()
+    createVirtualDestination()
     monitor?.initialized(uniqueId: ourUniqueId)
     updateConnections()
   }
@@ -137,7 +138,7 @@ private extension MIDI {
       }
     }
 
-    logIfErr(log, "MIDIClientCreateWithBlock", err)
+    err.wasSuccessful(log, "MIDIClientCreateWithBlock")
   }
 
   func updateConnections() {
@@ -156,17 +157,18 @@ private extension MIDI {
   func connectSource(endpoint: MIDIEndpointRef) -> Bool {
     let name = endpoint.displayName
     let uniqueId = endpoint.uniqueId
+    os_log(.info, log: log, "connectSource - %d %{public}s", uniqueId, name)
     guard uniqueId != ourUniqueId && !activeConnections.contains(uniqueId) else {
       os_log(.debug, log: log, "already connected to endpoint %d '%{public}s'", uniqueId, name)
       return false
     }
 
-    activeConnections.insert(uniqueId)
-
     os_log(.info, log: log, "connecting endpoint %d '%{public}s'", uniqueId, name)
-    logIfErr(log, "MIDIPortConnectSource", MIDIPortConnectSource(virtualMidiIn, endpoint, boxUniqueId(uniqueId)))
+    let refCon = boxUniqueId(uniqueId)
+    refCons[uniqueId] = refCon
 
-    return true
+    return MIDIPortConnectSource(inputPort, endpoint, refCon)
+      .wasSuccessful(log, "MIDIPortConnectSource")
   }
 
   func disconnectSource(uniqueId: MIDIUniqueID) -> Bool {
@@ -182,9 +184,9 @@ private extension MIDI {
     }
 
     os_log(.info, log: log, "disconnecting endpoint %d '%{public}s'", uniqueId, endpoint.displayName)
-    logIfErr(log, "MIDIPortDisconnectSource", MIDIPortDisconnectSource(inputPort, endpoint))
 
-    return true
+    return MIDIPortDisconnectSource(virtualMidiIn, endpoint)
+      .wasSuccessful(log, "MIDIPortDisconnectSource")
   }
 
   func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
@@ -198,6 +200,18 @@ private extension MIDI {
     return uniqueId
   }
 
+  func createInputPort() {
+    let err = MIDIInputPortCreateWithProtocol(client, inputPortName as CFString, ._2_0,
+                                              &inputPort) { [weak self] eventListPointer, refCon in
+      guard let self = self else { return }
+      self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
+    }
+
+    if err.wasSuccessful(log, "MIDIInputPortCreateWithProtocol") {
+      initializeInput(inputPort)
+    }
+  }
+
   func createVirtualDestination() {
     let err = MIDIDestinationCreateWithProtocol(client, inputPortName as CFString, midiProtocol,
                                                 &virtualMidiIn) { [weak self] eventListPointer, refCon in
@@ -205,7 +219,7 @@ private extension MIDI {
       self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
     }
 
-    if !logIfErr(log, "MIDIDestinationCreateWithBlock", err) {
+    if err.wasSuccessful(log, "MIDIDestinationCreateWithBlock") {
       initializeInput(virtualMidiIn)
     }
   }
@@ -216,40 +230,30 @@ private extension MIDI {
     }
   }
 
-  func createInputPort() {
-    let err = MIDIInputPortCreateWithProtocol(client, inputPortName as CFString, midiProtocol,
-                                              &inputPort) { [weak self] eventListPointer, refCon in
-      guard let self = self else { return }
-      self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
-    }
-
-    if !logIfErr(log, "MIDIInputPortCreateWithBlock", err) {
-      initializeInput(inputPort)
-    }
-  }
-
   func initializeInput(_ endpoint: MIDIEndpointRef) {
+    os_log(.debug, log: log, "initializeInput")
     let newUniqueId = endpoint.uniqueId
 
     // Try to reuse our previous uniqueId. If that fails, use the new one
-    if logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyUniqueID)",
-                MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, ourUniqueId)) {
+    if MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, ourUniqueId)
+      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyUniqueID)") {
+      os_log(.debug, log: log, "using newUniqueId - %d", newUniqueId)
       ourUniqueId = newUniqueId
     }
 
-    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyAdvanceScheduleTimeMuSec)",
-             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyAdvanceScheduleTimeMuSec, 1))
-    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesClock)",
-             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesClock, 1))
-    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesNotes)",
-             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesNotes, 1))
-    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesProgramChanges)",
-             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesProgramChanges, 1))
-    logIfErr(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyMaxReceiveChannels)",
-             MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyMaxReceiveChannels, 16))
+    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyAdvanceScheduleTimeMuSec, 1)
+      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyAdvanceScheduleTimeMuSec)")
+    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesClock, 1)
+      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesClock)")
+    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesNotes, 1)
+      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesNotes)")
+    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesProgramChanges, 1)
+      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesProgramChanges)")
+    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyMaxReceiveChannels, 16)
+      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyMaxReceiveChannels)")
   }
 
-  func enableNetwork() {
+  func enableNetworkSession() {
     let mns = MIDINetworkSession.default()
     mns.isEnabled = true
     mns.connectionPolicy = .anyone
@@ -259,5 +263,4 @@ private extension MIDI {
     os_log(.debug, log: log, "net session networkName: %{public}s", mns.networkName)
     os_log(.debug, log: log, "net session localName: %{public}s", mns.localName)
   }
-
 }
