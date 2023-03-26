@@ -1,7 +1,7 @@
-// Copyright © 2021 Brad Howes. All rights reserved.
+// Copyright © 2023 Brad Howes. All rights reserved.
 
+import os.log
 import CoreMIDI
-import os
 
 /**
  Connects to any and all MIDI sources, processing all messages it sees. There really is no API right now. Just create
@@ -10,29 +10,57 @@ import os
 public final class MIDI: NSObject {
   private let log: OSLog = Logging.logger("MIDI")
 
-  private var ourUniqueId: MIDIUniqueID
-  private let clientName: String
-  private lazy var inputPortName = clientName + " In"
-  private let midiProtocol: MIDIProtocolID
-  private let parser = MIDI2Parser()
+  /// The MIDI protocol we are expecting.
+  public let midiProtocol: MIDIProtocolID
 
-  private var client: MIDIClientRef = MIDIClientRef()
-  private var inputPort: MIDIPortRef = MIDIEndpointRef()
-  private var virtualMidiIn: MIDIEndpointRef = MIDIEndpointRef()
-
-  /// Collection of endpoint IDs and the last channel ID found in a MIDI message from the endpoint
+  /// Collection of endpoint unique IDs and the last channel ID found in a MIDI message from that endpoint
   @objc dynamic
   public private(set) var channels = [MIDIUniqueID: Int]()
-  public private(set) var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
 
-  /// Collection of connection IDs that are connected to our virtual endpoint.
+  @objc dynamic
+  public private(set) var groups = [MIDIUniqueID: Int]()
+
+  /// Collection of connection IDs that are connected to our input port.
   @objc dynamic
   public private(set) var activeConnections = Set<MIDIUniqueID>()
 
+  /// Returns `true` when the MIDI service is running and accepting messages
+  public var isRunning: Bool { inputPort != MIDIPortRef() }
+
+  public var model: String = "" {
+    didSet {
+      if inputPort != MIDIPortRef() {
+        inputPort.model = model
+      }
+    }
+  }
+
+  public var manufacturer: String = "" {
+    didSet {
+      if inputPort != MIDIPortRef() {
+        inputPort.manufacturer = manufacturer
+      }
+    }
+  }
+
+  public var enableNetworkConnections: Bool = true {
+    didSet {
+      configureNetworkConnections()
+    }
+  }
+
+  private var client: MIDIClientRef = .init()
+  internal var inputPort: MIDIPortRef = .init()
+  private var ourUniqueId: MIDIUniqueID
+  private let clientName: String
+  private lazy var inputPortName = clientName + " In"
+  private let parser: MIDI2Parser = .init()
+  private var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
+
   /**
-   Current state of a MIDI device
+   Current state of a MIDI connection to the inputPort
    */
-  public struct DeviceState: Equatable {
+  public struct SourceConnectionState: Equatable {
     /// Unique ID for the device endpoint to connect to
     let uniqueId: MIDIUniqueID
     /// The display name for the endpoint
@@ -41,17 +69,21 @@ public final class MIDI: NSObject {
     let connected: Bool
     /// Last seen channel in a MIDI message from this device
     let channel: Int?
+    /// Last seen group in a MIDI message from this device
+    let group: Int?
   }
 
-  /// Obtain current state of MIDI device connections
-  public var devices: [DeviceState] {
-    Sources().map { endpoint in
+  /// Obtain current state of MIDI connections
+  public var sourceConnections: [SourceConnectionState] {
+    KnownSources.all.map { endpoint in
       let uniqueId = endpoint.uniqueId
       let displayName = endpoint.displayName
       let connected = activeConnections.contains(uniqueId)
+      let group = groups[uniqueId]
       let channel = channels[uniqueId]
-      os_log(.info, log: log, "DeviceEntry(%d '%{public}s' %d", uniqueId, displayName, connected)
-      return DeviceState(uniqueId: uniqueId, displayName: displayName, connected: connected, channel: channel)
+      os_log(.info, log: log, "SourceConnectionState(%d '%{public}s' %d", uniqueId, displayName, connected)
+      return SourceConnectionState(uniqueId: uniqueId, displayName: displayName, connected: connected,
+                                   channel: channel, group: group)
     }
   }
 
@@ -61,13 +93,20 @@ public final class MIDI: NSObject {
   /// Delegate which will receive notification about MIDI connectivity
   public weak var monitor: Monitor?
 
+  private var eventQueue: DispatchQueue
+
   /**
-   Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic
+   Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic.
+
+   - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
+   - parameter uniqueId: the unique ID to use for the input port of the client
+   - parameter midiProtocol: the MIDI protocol to use (default is 2.0)
    */
-  public init(clientName: String, uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._1_0) {
+  public init(clientName: String, uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._2_0) {
     self.clientName = clientName
     self.ourUniqueId = uniqueId
     self.midiProtocol = midiProtocol
+    self.eventQueue = Self.makeQueue(clientName: clientName)
     super.init()
   }
 
@@ -75,9 +114,8 @@ public final class MIDI: NSObject {
    Tear down MIDI plumbing.
    */
   deinit {
+    monitor?.willUninitialize()
     stop()
-    if client != MIDIClientRef() { MIDIClientDispose(client) }
-    monitor?.deinitialized()
   }
 }
 
@@ -86,24 +124,37 @@ public extension MIDI {
   /**
    Begin MIDI processing.
    */
-  func start() {
-    createClient()
-    initialize()
+  @discardableResult
+  func start() -> Bool {
+    guard inputPort == MIDIPortRef() else { return false }
+    guard createClient() else { return false }
+    monitor?.didInitialize(uniqueId: ourUniqueId)
+    guard createInputPort() else { return false }
+    monitor?.didCreate(inputPort: inputPort)
+    configureNetworkConnections()
+    updateConnections()
+    return true
   }
 
   /**
    End MIDI processing.
    */
   func stop() {
-    if inputPort != MIDIEndpointRef() {
-      MIDIEndpointDispose(inputPort)
-      inputPort = MIDIEndpointRef()
+    if inputPort != MIDIPortRef() {
+      monitor?.willDelete(inputPort: inputPort)
+      MIDIPortDispose(inputPort)
+        .wasSuccessful(log, "MIDIPortDispose")
+      inputPort = MIDIPortRef()
+
+      // NOTE: according to note about MIDIClientDispose this should not be called since it could lave the app without
+      // MIDI connectivity. All will be cleaned up upon app exit.
+      // MIDIClientDispose(client)
+      //  .wasSuccessful(log, "MIDIClientDispose")
     }
 
-    if virtualMidiIn != MIDIEndpointRef() {
-      MIDIEndpointDispose(virtualMidiIn)
-      virtualMidiIn = MIDIEndpointRef()
-    }
+    channels.removeAll()
+    groups.removeAll()
+    activeConnections.removeAll()
   }
 
   /**
@@ -112,116 +163,69 @@ public extension MIDI {
    - parameter uniqueId: the uniqueId of the endpoints
    - parameter channel: the channel number
    */
-  func updateEndpointChannel(uniqueId: MIDIUniqueID, channel: Int) {
+  func updateEndpointInfo(uniqueId: MIDIUniqueID, group: Int, channel: Int) {
+    os_log(.debug, log: log, "updateEndpointInfo: %d %d %d", uniqueId, group, channel)
+    groups[uniqueId] = group
     channels[uniqueId] = channel
+    monitor?.didSee(uniqueId: uniqueId, group: group, channel: channel)
+  }
+}
+
+internal extension MIDI {
+
+  /**
+   Create a virtual output port to use for testing MIDI package delivery and parsing.
+
+   - parameter uniqueId: the unique ID to assign to the output port
+   - returns: the MIDIEndpointRef of the new output port
+   */
+  func createOutputPort(uniqueId: MIDIUniqueID) -> MIDIEndpointRef {
+    var outputPort: MIDIEndpointRef = .init()
+    let outputPortName = clientName + " Output"
+    MIDISourceCreateWithProtocol(client, outputPortName as CFString, midiProtocol, &outputPort)
+      .wasSuccessful(log, "MIDISourceCreateWithProtocol")
+    outputPort.uniqueId = uniqueId
+    return outputPort
   }
 }
 
 private extension MIDI {
 
-  func initialize() {
-    enableNetworkSession()
-    createInputPort()
-    createVirtualDestination()
-    monitor?.initialized(uniqueId: ourUniqueId)
-    updateConnections()
-  }
-
-  func createClient() {
-    let err = MIDIClientCreateWithBlock(clientName as CFString, &client) { [weak self] in
+  /**
+   Create a new MIDI client to host all of the MIDI connections.
+   */
+  func createClient() -> Bool {
+    let result = MIDIClientCreateWithBlock(clientName as CFString, &client) { [weak self] notificationPointer in
       guard let self = self else { return }
-      let messageID = $0.pointee.messageID
+
+      let notification = notificationPointer.pointee
+      let messageID = notification.messageID
       os_log(.debug, log: self.log, "client callback: %{public}s", messageID.tag)
       if messageID  == .msgSetupChanged {
-        self.updateConnections()
-        self.monitor?.updatedDevices()
+        self.eventQueue.async {
+          self.updateConnections()
+        }
       }
     }
 
-    err.wasSuccessful(log, "MIDIClientCreateWithBlock")
+    return result.wasSuccessful(log, "MIDIClientCreateWithBlock")
   }
 
-  func updateConnections() {
-    os_log(.info, log: log, "updateConnections")
+  func createInputPort() -> Bool {
+    guard inputPort == MIDIEndpointRef() else { return false }
 
-    let active = Sources()
-    let inactive = activeConnections.subtracting(active.uniqueIds)
-
-    let changed: Int = (active.map { connectSource(endpoint: $0) ? 1 : 0 }.reduce(0, +) +
-                        inactive.map { disconnectSource(uniqueId: $0) ? 1 : 0 }.reduce(0, +))
-    if changed != 0 {
-      monitor?.updatedConnections()
-    }
-  }
-
-  func connectSource(endpoint: MIDIEndpointRef) -> Bool {
-    let name = endpoint.displayName
-    let uniqueId = endpoint.uniqueId
-    os_log(.info, log: log, "connectSource - %d %{public}s", uniqueId, name)
-    guard uniqueId != ourUniqueId && !activeConnections.contains(uniqueId) else {
-      os_log(.debug, log: log, "already connected to endpoint %d '%{public}s'", uniqueId, name)
-      return false
-    }
-
-    os_log(.info, log: log, "connecting endpoint %d '%{public}s'", uniqueId, name)
-    let refCon = boxUniqueId(uniqueId)
-    refCons[uniqueId] = refCon
-
-    return MIDIPortConnectSource(inputPort, endpoint, refCon)
-      .wasSuccessful(log, "MIDIPortConnectSource")
-  }
-
-  func disconnectSource(uniqueId: MIDIUniqueID) -> Bool {
-    guard activeConnections.contains(uniqueId) else {
-      os_log(.debug, log: log, "not connected to %d", uniqueId)
-      return false
-    }
-
-    activeConnections.remove(uniqueId)
-    guard let endpoint = Sources().first(where: { $0.uniqueId == uniqueId }) else {
-      os_log(.error, log: log, "unable to disconnect - no endpoint with uniqueId %d", uniqueId)
-      return false
-    }
-
-    os_log(.info, log: log, "disconnecting endpoint %d '%{public}s'", uniqueId, endpoint.displayName)
-
-    return MIDIPortDisconnectSource(virtualMidiIn, endpoint)
-      .wasSuccessful(log, "MIDIPortDisconnectSource")
-  }
-
-  func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
-    let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
-    refCon.initialize(to: uniqueId)
-    return refCon
-  }
-
-  func unboxRefCon(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
-    guard let uniqueId = refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee else { fatalError() }
-    return uniqueId
-  }
-
-  func createInputPort() {
-    let err = MIDIInputPortCreateWithProtocol(client, inputPortName as CFString, ._2_0,
-                                              &inputPort) { [weak self] eventListPointer, refCon in
+    let inputPortName = inputPortName as CFString
+    let result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol,
+                                                 &inputPort) { [weak self] eventListPointer, refCon in
       guard let self = self else { return }
-      self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
+      self.eventQueue.async {
+        self.processEventList(eventList: eventListPointer, uniqueId: unboxRefCon(refCon))
+      }
     }
 
-    if err.wasSuccessful(log, "MIDIInputPortCreateWithProtocol") {
-      initializeInput(inputPort)
-    }
-  }
-
-  func createVirtualDestination() {
-    let err = MIDIDestinationCreateWithProtocol(client, inputPortName as CFString, midiProtocol,
-                                                &virtualMidiIn) { [weak self] eventListPointer, refCon in
-      guard let self = self else { return }
-      self.processEventList(eventList: eventListPointer, uniqueId: self.unboxRefCon(refCon))
-    }
-
-    if err.wasSuccessful(log, "MIDIDestinationCreateWithBlock") {
-      initializeInput(virtualMidiIn)
-    }
+    guard result.wasSuccessful(log, "MIDIInputPortCreateWithProtocol") else { return false }
+    initializeInputPort()
+    return true
   }
 
   func processEventList(eventList: UnsafePointer<MIDIEventList>, uniqueId: MIDIUniqueID) {
@@ -230,37 +234,140 @@ private extension MIDI {
     }
   }
 
-  func initializeInput(_ endpoint: MIDIEndpointRef) {
-    os_log(.debug, log: log, "initializeInput")
-    let newUniqueId = endpoint.uniqueId
+  func updateConnections() {
+    os_log(.info, log: log, "updateConnections")
 
-    // Try to reuse our previous uniqueId. If that fails, use the new one
-    if MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, ourUniqueId)
-      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyUniqueID)") {
-      os_log(.debug, log: log, "using newUniqueId - %d", newUniqueId)
-      ourUniqueId = newUniqueId
-    }
+    monitor?.willUpdateConnections()
 
-    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyAdvanceScheduleTimeMuSec, 1)
-      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyAdvanceScheduleTimeMuSec)")
-    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesClock, 1)
-      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesClock)")
-    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesNotes, 1)
-      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesNotes)")
-    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyReceivesProgramChanges, 1)
-      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyReceivesProgramChanges)")
-    MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyMaxReceiveChannels, 16)
-      .wasSuccessful(log, "MIDIObjectSetIntegerProperty(kMIDIPropertyMaxReceiveChannels)")
+    // Connect to newly available sources
+    let active = KnownSources.all
+    let added = active.compactMap { connectSource(endpoint: $0) }
+
+    // Disconnect from sources that have gone away
+    let disappeared = activeConnections.subtracting(active.uniqueIds)
+    let removed = disappeared.compactMap { disconnectSource(uniqueId: $0) }
+
+    // Update the set uniqueIds for active connections
+    activeConnections.formUnion(added.map { $0.uniqueId })
+    activeConnections.subtract(removed.map { $0.uniqueId })
+
+    os_log(.info, log: log, "activeConnections: %{public}s", activeConnections.description)
+    monitor?.didUpdateConnections(added: added, removed: removed)
   }
 
-  func enableNetworkSession() {
+  func connectSource(endpoint: MIDIEndpointRef) -> MIDIEndpointRef? {
+    let name = endpoint.displayName
+    let uniqueId = endpoint.uniqueId
+    os_log(.info, log: log, "connectSource - %d '%{public}s' %d", uniqueId, name, endpoint)
+
+    guard uniqueId != ourUniqueId && !activeConnections.contains(uniqueId) else {
+      os_log(.debug, log: log, "already connected to endpoint %d '%{public}s'", uniqueId, name)
+      return nil
+    }
+
+    guard monitor?.shouldConnect(to: endpoint) ?? true else {
+      os_log(.info, log: log, "connectSource - blocked by monitor")
+      return nil
+    }
+
+    let refCon = boxUniqueId(uniqueId)
+    refCons[uniqueId] = refCon
+
+    os_log(.info, log: log, "connecting endpoint %d '%{public}s' %d %ld", uniqueId, name, endpoint, refCon)
+    let success = MIDIPortConnectSource(inputPort, endpoint, refCon)
+      .wasSuccessful(log, "MIDIPortConnectSource")
+    if success {
+      monitor?.didConnect(to: endpoint)
+    }
+
+    return success ? endpoint : nil
+  }
+
+  func disconnectSource(uniqueId: MIDIUniqueID) -> MIDIEndpointRef? {
+    guard activeConnections.contains(uniqueId) else {
+      os_log(.debug, log: log, "not connected to %d", uniqueId)
+      return nil
+    }
+
+    activeConnections.remove(uniqueId)
+    guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else {
+      os_log(.error, log: log, "unable to disconnect - no endpoint with uniqueId %d", uniqueId)
+      return nil
+    }
+
+    os_log(.info, log: log, "disconnecting endpoint %d '%{public}s'", uniqueId, endpoint.displayName)
+
+    if let refCon = refCons.removeValue(forKey: uniqueId) {
+      refCon.deallocate()
+    }
+
+    groups.removeValue(forKey: uniqueId)
+    channels.removeValue(forKey: uniqueId)
+
+    return MIDIPortDisconnectSource(inputPort, endpoint)
+      .wasSuccessful(log, "MIDIPortDisconnectSource") ? endpoint : nil
+  }
+
+  func initializeInputPort() {
+    os_log(.debug, log: log, "initializeInputPort")
+
+    if KnownDestinations.matching(uniqueId: ourUniqueId) == nil {
+      ourUniqueId = inputPort.uniqueId
+    } else {
+      inputPort.uniqueId = ourUniqueId
+    }
+
+    inputPort.set(kMIDIPropertyManufacturer, to: manufacturer)
+    inputPort.set(kMIDIPropertyModel, to: model)
+    inputPort.set(kMIDIPropertyDisplayName, to: inputPort.name)
+//    inputPort.set(kMIDIPropertyReceivesNotes, to: 1)
+//    inputPort.set(kMIDIPropertyReceivesProgramChanges, to: 1)
+//    inputPort.set(kMIDIPropertyMaxReceiveChannels, to: 16)
+  }
+
+  func configureNetworkConnections() {
     let mns = MIDINetworkSession.default()
-    mns.isEnabled = true
-    mns.connectionPolicy = .anyone
+    mns.isEnabled = enableNetworkConnections
+    mns.connectionPolicy = enableNetworkConnections ? .anyone : .noOne
+
     os_log(.debug, log: log, "clientName: %{public}s", clientName)
     os_log(.debug, log: log, "net session enabled: %d", mns.isEnabled)
     os_log(.debug, log: log, "net session networkPort: %d", mns.networkPort)
     os_log(.debug, log: log, "net session networkName: %{public}s", mns.networkName)
     os_log(.debug, log: log, "net session localName: %{public}s", mns.localName)
+  }
+
+  private static func makeQueue(clientName: String) -> DispatchQueue {
+    var clientName = clientName.onlyAlphaNumerics
+    if clientName.isEmpty { clientName = UUID().uuidString }
+
+    let eventQueueName = "\(Bundle.main.bundleIdentifier ?? "com.braysoft.MorkAndMIDI").midi.\(clientName).events"
+    return DispatchQueue(
+      label: eventQueueName,
+      qos: .userInitiated,
+      attributes: [],
+      autoreleaseFrequency: .workItem,
+      target: .global(qos: .userInitiated)
+    )
+  }
+}
+
+private func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
+  let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
+  refCon.initialize(to: uniqueId)
+  return refCon
+}
+
+private func unboxRefCon(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
+  guard let uniqueId = refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee else { fatalError() }
+  return uniqueId
+}
+
+extension StringProtocol {
+  var onlyAlphaNumerics: String {
+    unicodeScalars
+      .filter { CharacterSet.alphanumerics.contains($0) }
+      .map { "\($0)" }
+      .joined()
   }
 }

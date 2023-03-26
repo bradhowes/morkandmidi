@@ -26,6 +26,7 @@ class MIDI2ParserTests: XCTestCase {
     midi = nil
     super.tearDown()
   }
+
   func testUniversalMessageType() {
     XCTAssertEqual(MIDI2Parser.UniversalMessageType.from(word: UInt32(0x01_23_45_67)), .utility)
     XCTAssertEqual(MIDI2Parser.UniversalMessageType.from(word: UInt32(0x11_23_45_67)), .systemCommonAndRealTime)
@@ -125,6 +126,17 @@ class MIDI2ParserTests: XCTestCase {
     XCTAssertEqual(receiver.received[4], "programChange 9")
     XCTAssertEqual(receiver.received[5], "channelPressure 11")
     XCTAssertEqual(receiver.received[6], "pitchBendChange 1805")
+  }
+
+  func testParserIgnoresMessageIfGroupMismatch() {
+    receiver.group = 1
+    packetBuilder.append(UInt32(0x21_81_01_02))
+    packetBuilder.append(UInt32(0x11_92_01_02))
+    packetBuilder.withUnsafePointer { pointer in
+      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+    }
+    XCTAssertEqual(1, receiver.received.count)
+    XCTAssertEqual(receiver.received[0], "noteOff 1 2")
   }
 
   func testParserIgnoresMessageIfChannelMismatch() {
@@ -238,16 +250,4 @@ class MIDI2ParserTests: XCTestCase {
     }
     XCTAssertTrue(receiver.received.isEmpty)
   }
-  
-//  func testParserMultipleMessages() {
-//    let receiver = Receiver()
-//    midi.receiver = receiver
-//    let noteOn = MIDIPacket.Builder(timestamp: 0, data: [0x91, 64, 32, 0x81, 64, 0]).packet
-//    noteOn.parse(midi: midi, uniqueId: 123)
-//    XCTAssertEqual(receiver.received, [
-//      Receiver.Event(cmd: 0x90, data1: 64, data2: 32),
-//      Receiver.Event(cmd: 0x80, data1: 64, data2: 0)
-//    ])
-//  }
-  
 }

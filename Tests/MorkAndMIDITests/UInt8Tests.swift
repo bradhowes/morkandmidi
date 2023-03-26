@@ -22,4 +22,10 @@ class UInt8Tests: XCTestCase {
     XCTAssertFalse(z[6])
     XCTAssertTrue(z[7])
   }
+
+  func testHexRepresentation() {
+    XCTAssertEqual(UInt8(0).hex, "0x00")
+    XCTAssertEqual(UInt8(255).hex, "0xFF")
+    XCTAssertEqual(UInt8(128).hex, "0x80")
+  }
 }

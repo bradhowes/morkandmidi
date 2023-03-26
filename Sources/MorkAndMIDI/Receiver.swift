@@ -1,16 +1,18 @@
-// Copyright © 2021 Brad Howes. All rights reserved.
-
-import Foundation
+// Copyright © 2023 Brad Howes. All rights reserved.
 
 /**
  Protocol for an object that processes supported MIDI messages. All methods of the protocol are optional; each has a
  default implementation that does nothing.
+
+ This protocol handles both MIDI v1 and v2 messages but not any SysEx ones.
  */
 public protocol Receiver: AnyObject {
 
   /// The channel the controller listens on. If -1, then it wants msgs from ALL channels
   var channel: Int { get }
 
+  /// For MIDI v2 group that can be used to filter incoming messages. If -1, then the group value in the MIDI v2
+  /// message is ignored (the message will not be filtered by group ID)
   var group: Int { get }
 
   /**
@@ -140,6 +142,8 @@ public protocol Receiver: AnyObject {
    */
   func pitchBendChangePerNote(note: UInt8, value: UInt32)
 
+  // MARK: - MIDI v1 and v2 status and utility notifications
+
   func timeCodeQuarterFrame(value: UInt8)
 
   func songPositionPointer(value: UInt16)
@@ -160,6 +164,8 @@ public protocol Receiver: AnyObject {
 
   func reset()
 
+  // MARK: - MIDI v2 notifications
+
   func registeredPerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32)
 
   func assignablePerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32)
@@ -175,8 +181,11 @@ public protocol Receiver: AnyObject {
   func perNoteManagement(note: UInt8, detach: Bool, reset: Bool)
 }
 
+// MARK: - Default implementations of Receiver protocol
+
 public extension Receiver {
 
+  var channel: Int { return -1 }
   var group: Int { return -1 }
 
   func noteOff(note: UInt8, velocity: UInt8) {}
@@ -220,3 +229,7 @@ public extension Receiver {
 
   func perNoteManagement(note: UInt8, detach: Bool, reset: Bool) {}
 }
+
+// Sentinel to flag if there is a spelling mistake between the protocol and the default implementations.
+private class _ReceiverCheck: Receiver {}
+

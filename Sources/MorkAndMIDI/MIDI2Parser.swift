@@ -1,7 +1,7 @@
-// Copyright © 2021 Brad Howes. All rights reserved.
+// Copyright © 2023 Brad Howes. All rights reserved.
 
 import CoreMIDI
-import os
+import os.log
 
 /**
  Parser of Universal MIDI Packet
@@ -72,7 +72,8 @@ public struct MIDI2Parser {
 }
 
 public extension MIDI2Parser {
-
+  private var allChannelGroupFilter: Int { return -1 }
+  private var neverChannelGroupFilter: Int { return -2 }
   /**
    Extract MIDI messages from the packets and process them
 
@@ -80,13 +81,15 @@ public extension MIDI2Parser {
    - parameter uniqueId: the unique ID of the MIDI endpoint that sent the messages
    */
   func parse(midi: MIDI, uniqueId: MIDIUniqueID, words: MIDIEventPacket.WordCollection) {
-    let receiverChannel = midi.receiver?.channel ?? -2
+    let receiverGroup = midi.receiver?.group ?? neverChannelGroupFilter
+    let receiverChannel = midi.receiver?.channel ?? neverChannelGroupFilter
 
-    func acceptsMessageChannel(_ word: UInt32) -> Bool {
+    func acceptsMessage(_ word: UInt32) -> Receiver? {
+      let messageGroup = Int(word.b0.lowNibble)
       let messageChannel = Int(word.b1.lowNibble)
-      midi.updateEndpointChannel(uniqueId: uniqueId, channel: messageChannel)
-      midi.monitor?.seen(uniqueId: uniqueId, channel: messageChannel)
-      return receiverChannel == -1 || receiverChannel == messageChannel
+      midi.updateEndpointInfo(uniqueId: uniqueId, group: messageGroup, channel: messageChannel)
+      return ((receiverGroup == allChannelGroupFilter || receiverGroup == messageGroup) &&
+              (receiverChannel == allChannelGroupFilter || receiverChannel == messageChannel)) ? midi.receiver : nil
     }
 
     func toMidi1Word(msb: UInt8, lsb: UInt8) -> UInt16 { UInt16(msb) << 7 + UInt16(lsb) }
@@ -132,7 +135,7 @@ public extension MIDI2Parser {
           os_log(.error, log: log, "invalid SystemCommonAndRealTimeMessage - %d", word0)
         }
       case .midi1ChannelVoice:
-        if acceptsMessageChannel(word0) {
+        if let receiver = acceptsMessage(word0) {
           switch ChannelVoiceMessage.from(word: word0)  {
           case .registeredPerNoteControllerChange:
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
@@ -147,19 +150,19 @@ public extension MIDI2Parser {
           case .relativeAssignableControllerChange:
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
           case .noteOff:
-            midi.receiver!.noteOff(note: word0.b2, velocity: word0.b3)
+            receiver.noteOff(note: word0.b2, velocity: word0.b3)
           case .noteOn:
-            midi.receiver!.noteOn(note: word0.b2, velocity: word0.b3)
+            receiver.noteOn(note: word0.b2, velocity: word0.b3)
           case .polyphonicKeyPressure:
-            midi.receiver!.polyphonicKeyPressure(note: word0.b2, pressure: word0.b3)
+            receiver.polyphonicKeyPressure(note: word0.b2, pressure: word0.b3)
           case .controlChange:
-            midi.receiver!.controlChange(controller: word0.b2, value: word0.b3)
+            receiver.controlChange(controller: word0.b2, value: word0.b3)
           case .programChange:
-            midi.receiver!.programChange(program: word0.b2)
+            receiver.programChange(program: word0.b2)
           case .channelPressure:
-            midi.receiver!.channelPressure(pressure: word0.b2)
+            receiver.channelPressure(pressure: word0.b2)
           case .pitchBendChange:
-            midi.receiver!.pitchBendChange(value: toMidi1Word(msb: word0.b3, lsb: word0.b2))
+            receiver.pitchBendChange(value: toMidi1Word(msb: word0.b3, lsb: word0.b2))
           case .perNoteManagement:
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
           case nil:
@@ -169,41 +172,41 @@ public extension MIDI2Parser {
       case .data64bit:
         os_log(.debug, log: log, "skipping data64bit messages")
       case .midi2ChannelVoice:
-        if acceptsMessageChannel(word0) {
+        if let receiver = acceptsMessage(word0) {
           let word1 = words[index.advanced(by: 1)]
           switch ChannelVoiceMessage.from(word: word0)  {
           case .registeredPerNoteControllerChange:
-            midi.receiver!.registeredPerNoteControllerChange(note: word0.b2, controller: word0.b3, value: word1)
+            receiver.registeredPerNoteControllerChange(note: word0.b2, controller: word0.b3, value: word1)
           case .assignablePerNoteControllerChange:
-            midi.receiver!.assignablePerNoteControllerChange(note: word0.b2, controller: word0.b3, value: word1)
+            receiver.assignablePerNoteControllerChange(note: word0.b2, controller: word0.b3, value: word1)
           case .registeredControllerChange:
-            midi.receiver!.registeredControllerChange(controller: word0.s1, value: word1)
+            receiver.registeredControllerChange(controller: word0.s1, value: word1)
           case .assignableControllerChange:
-            midi.receiver!.assignableControllerChange(controller: word0.s1, value: word1)
+            receiver.assignableControllerChange(controller: word0.s1, value: word1)
           case .relativeRegisteredControllerChange:
-            midi.receiver!.relativeRegisteredControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
+            receiver.relativeRegisteredControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
           case .relativeAssignableControllerChange:
-            midi.receiver!.relativeAssignableControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
+            receiver.relativeAssignableControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
           case .noteOff:
-            midi.receiver!.noteOff2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
+            receiver.noteOff2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
           case .noteOn:
-            midi.receiver!.noteOn2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
+            receiver.noteOn2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
           case .polyphonicKeyPressure:
-            midi.receiver!.polyphonicKeyPressure2(note: word0.b2, pressure: word1)
+            receiver.polyphonicKeyPressure2(note: word0.b2, pressure: word1)
           case .controlChange:
-            midi.receiver!.controlChange2(controller: word0.b2, value: word1)
+            receiver.controlChange2(controller: word0.b2, value: word1)
           case .programChange:
             if word0.b3[0] {
-              midi.receiver!.programChange2(program: word1.b0, bank: word1.s1)
+              receiver.programChange2(program: word1.b0, bank: word1.s1)
             } else {
-              midi.receiver!.programChange(program: word1.b0)
+              receiver.programChange(program: word1.b0)
             }
           case .channelPressure:
-            midi.receiver!.channelPressure2(pressure: word1)
+            receiver.channelPressure2(pressure: word1)
           case .pitchBendChange:
-            midi.receiver!.pitchBendChange2(value: word1)
+            receiver.pitchBendChange2(value: word1)
           case .perNoteManagement:
-            midi.receiver!.perNoteManagement(note: word0.b2, detach: word0.b3[1], reset: word0.b3[0])
+            receiver.perNoteManagement(note: word0.b2, detach: word0.b3[1], reset: word0.b3[0])
           case nil:
             os_log(.error, log: log, "invalid ChannelVoiceMessage - %d", word0)
           }

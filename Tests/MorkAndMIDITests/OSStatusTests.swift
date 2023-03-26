@@ -3,6 +3,7 @@
 @testable import MorkAndMIDI
 import CoreMIDI
 import XCTest
+import os.log
 
 class OSStatusTests: XCTestCase {
 
@@ -25,5 +26,10 @@ class OSStatusTests: XCTestCase {
     XCTAssertEqual(kMIDINotPermitted.tag, "kMIDINotPermitted")
     XCTAssertEqual(kMIDIMessageSendErr.tag, "kMIDIMessageSendErr")
     XCTAssertEqual(kMIDIUnknownError.tag, "???")
+  }
+
+  func testWasSuccessful() {
+    XCTAssertTrue(noErr.wasSuccessful(OSLog(subsystem: "foo", category: "bar"), "hello"))
+    XCTAssertFalse(kMIDIInvalidPort.wasSuccessful(OSLog(subsystem: "foo", category: "bar"), "hello"))
   }
 }

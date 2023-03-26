@@ -1,8 +1,8 @@
-// Copyright © 2021 Brad Howes. All rights reserved.
+// Copyright © 2023 Brad Howes. All rights reserved.
 
 import CoreMIDI
 
-internal extension MIDINotificationMessageID {
+public extension MIDINotificationMessageID {
 
   /// String representations of MIDINotificationMessageID enum values
   var tag: String {
@@ -14,7 +14,7 @@ internal extension MIDINotificationMessageID {
     case .msgIOError: return "msgIOError"
     case .msgThruConnectionsChanged: return "msgThruConnectionsChanged"
     case .msgSerialPortOwnerChanged: return "msgSerialPortOwnerChanged"
-    @unknown default: fatalError()
+    @unknown default: return "?"
     }
   }
 }

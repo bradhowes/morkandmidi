@@ -1,5 +1,5 @@
 // Copyright © 2021 Brad Howes. All rights reserved.
-
+import os
 @testable import MorkAndMIDI
 import CoreMIDI
 import XCTest
@@ -13,6 +13,7 @@ internal class Receiver: MorkAndMIDI.Receiver {
 
   weak var test: XCTestCase?
   var channel: Int = -1
+  var group: Int = -1
   var received = [String]()
   var expectationKind: ExpectationKind!
   var expectation: XCTestExpectation!
@@ -134,49 +135,193 @@ internal class Receiver: MorkAndMIDI.Receiver {
 }
 
 internal class Monitor: MorkAndMIDI.Monitor {
+  private let log: OSLog = .init(subsystem: "Testing", category: "Monitor")
 
-  enum ExpectationKind: String {
-    case initialized
-    case deinitialized
-    case updatedDevices
-    case updatedConnections
-    case seen
+  enum ExpectationKind: CustomStringConvertible, Equatable, Hashable {
+    var description: String {
+      switch self {
+      case .didInitialize: return "didInitialize"
+      case .willUninitialize: return "willUnitialize"
+      case .didCreateInputPort: return "didCreateInputPort"
+      case .willDeleteInputPort: return "willDeleteInputPort"
+      case .shouldConnectTo: return "shouldConnectTo"
+      case .didConnectTo: return "didConnectTo"
+      case .willUpdateConnections: return "willUpdateConnections"
+      case .didUpdateConnections: return "didUpdateConnections"
+      case .didSee: return "didSee"
+      }
+    }
+
+    case didInitialize
+    case willUninitialize
+    case didCreateInputPort
+    case willDeleteInputPort
+    case shouldConnectTo
+    case didConnectTo(uniqueId: MIDIUniqueID)
+    case willUpdateConnections(lookingFor: [MIDIUniqueID])
+    case didUpdateConnections
+    case didSee(uniqueId: MIDIUniqueID)
   }
 
-  weak var test: XCTestCase?
-  var uniqueIds = [MIDIUniqueID: Int]()
+  weak var test: XCTestCase!
+  var connectionChannels = [MIDIUniqueID: (group: Int, channel: Int)]()
+  var shouldConnectTo = [MIDIUniqueID]()
   var ourUniqueId: MIDIUniqueID?
-  var expectationKind: ExpectationKind!
-  var expectation: XCTestExpectation!
+
+  struct ExpectationInfo {
+    let kind: ExpectationKind
+    let expectation: XCTestExpectation
+  }
+
+  var expectationStack = [ExpectationInfo]()
 
   init(_ test: XCTestCase) {
     self.test = test
   }
+}
+
+internal extension Monitor {
+
+  var expectation: XCTestExpectation { expectationStack.last!.expectation }
+
+  func pushExpectation(_ kind: ExpectationKind) {
+    os_log(.info, log: log, "pushExpectation %{public}s", kind.description)
+    expectationStack.append(.init(kind: kind, expectation: test!.expectation(description: kind.description)))
+  }
 
   func fulfill(_ kind: ExpectationKind) {
-    guard expectation != nil else { return }
-    print("fulfill: ", kind.rawValue, expectationKind.rawValue)
-    if kind == expectationKind {
-      expectation.fulfill()
+    guard let expectationInfo = expectationStack.last else { return }
+    os_log(.info, log: log, "fulfill %{public}s - next: %{public}s", kind.description, expectationInfo.kind.description)
+    if kind == expectationInfo.kind {
+      expectationInfo.expectation.fulfill()
     }
   }
 
-  func setExpectation(_ kind: ExpectationKind) {
-    self.expectationKind = kind
-    self.expectation = test?.expectation(description: kind.rawValue)
+  func waitForExpectation(sec timeout: Double = 5.0) {
+    os_log(.info, log: log, "waitFoExpectation")
+    guard let expectationInfo = expectationStack.last else { fatalError("no expectation to wait for") }
+    os_log(.info, log: log, "expectation: %{public}s", expectationInfo.kind.description)
+    self.test!.wait(for: [expectationInfo.expectation], timeout: timeout)
+    _ = expectationStack.popLast()
   }
 
-  func initialized(uniqueId: MIDIUniqueID) {
+  func didInitialize(uniqueId: MIDIUniqueID) {
     ourUniqueId = uniqueId
-    fulfill(.initialized)
+    fulfill(.didInitialize)
   }
 
-  func deinitialized() { fulfill(.deinitialized) }
-  func updatedDevices() { fulfill(.updatedDevices) }
-  func updatedConnections() { fulfill(.updatedConnections) }
+  func willUninitialize() { fulfill(.willUninitialize) }
 
- func seen(uniqueId: MIDIUniqueID, channel: Int) {
-   uniqueIds[uniqueId] = channel
-   fulfill(.seen)
+  func didCreate(inputPort: MIDIPortRef) { fulfill(.didCreateInputPort) }
+
+  func willDelete(inputPort: MIDIPortRef) { fulfill(.willDeleteInputPort) }
+
+  func willUpdateConnections() {
+    guard let expectationInfo = expectationStack.last else { return }
+    if case let .willUpdateConnections(lookingFor: uniqueIds) = expectationInfo.kind {
+      let known = Set<MIDIUniqueID>(KnownSources.all.uniqueIds)
+      let remainingUniqueIds = uniqueIds.filter { !known.contains($0) }
+      if remainingUniqueIds.isEmpty {
+        expectationInfo.expectation.fulfill()
+      } else {
+        expectationStack[expectationStack.count - 1] =
+          .init(kind: .willUpdateConnections(lookingFor: remainingUniqueIds), expectation: expectationInfo.expectation)
+      }
+    }
+  }
+
+  func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool {
+    fulfill(.shouldConnectTo)
+    return shouldConnectTo.isEmpty || shouldConnectTo.contains(endpoint.uniqueId)
+  }
+
+  func didConnect(to endpoint: MIDIEndpointRef) {
+    guard let expectationInfo = expectationStack.last else { return }
+    if case let .didConnectTo(uniqueId: expectedUniqueId) = expectationInfo.kind {
+      if endpoint.uniqueId == expectedUniqueId {
+        expectationInfo.expectation.fulfill()
+      }
+    }
+  }
+
+  func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef]) {
+    fulfill(.didUpdateConnections)
+  }
+
+  func didSee(uniqueId: MIDIUniqueID, group: Int, channel: Int) {
+    connectionChannels[uniqueId] = (group: group, channel: channel)
+    guard let expectationInfo = expectationStack.last else { return }
+    if case let .didSee(uniqueId: expectedUniqueId) = expectationInfo.kind {
+      if uniqueId == expectedUniqueId {
+        expectationInfo.expectation.fulfill()
+      }
+    }
+  }
+}
+
+extension XCTestCase {
+
+  public func delay(sec timeout: Double) {
+    let delayExpectation = XCTestExpectation()
+    delayExpectation.isInverted = true
+    wait(for: [delayExpectation], timeout: timeout)
+  }
+}
+
+class MonitoredTestCase : XCTestCase {
+
+  var midi: MIDI!
+  var monitor: Monitor!
+  var uniqueId: MIDIUniqueID!
+  var client: MIDIClientRef = .init()
+  var source1: MIDIEndpointRef = .init()
+  var source2: MIDIEndpointRef = .init()
+
+  func initialize(clientName: String, uniqueId: MIDIUniqueID) {
+    self.uniqueId = uniqueId
+    self.midi = MIDI(clientName: clientName, uniqueId: uniqueId)
+    monitor = Monitor(self)
+    midi.monitor = monitor
+  }
+
+  func createSource1() {
+    monitor.pushExpectation(.willUpdateConnections(lookingFor: [uniqueId + 1]))
+
+    var err = MIDIClientCreateWithBlock("TestSource" as CFString, &client, nil)
+    XCTAssertEqual(err, noErr)
+
+    err = MIDISourceCreateWithProtocol(client, "Source1" as CFString, midi.midiProtocol, &source1)
+    XCTAssertEqual(err, noErr)
+    source1.uniqueId = uniqueId + 1
+
+    monitor.waitForExpectation()
+  }
+
+  func createSource2() {
+    let err = MIDISourceCreateWithProtocol(client, "Source2" as CFString, midi.midiProtocol, &source2)
+    XCTAssertEqual(err, noErr)
+    source2.uniqueId = uniqueId + 2
+  }
+
+  func doAndWaitFor(expectation: Monitor.ExpectationKind, duration: Double = 5.0, start: Bool = true,
+                    block: (() -> Void)? = nil) {
+    monitor.pushExpectation(expectation)
+    if start {
+      midi.start()
+    }
+    block?()
+    monitor.waitForExpectation(sec: duration)
+  }
+
+  @discardableResult
+  func doAndWaitFor<T>(expectation: Monitor.ExpectationKind, duration: Double = 5.0, start: Bool = true,
+                       block: (() -> T)? = nil) -> T? {
+    monitor.pushExpectation(expectation)
+    if start {
+      midi.start()
+    }
+    let value = block?()
+    monitor.waitForExpectation(sec: duration)
+    return value
   }
 }
