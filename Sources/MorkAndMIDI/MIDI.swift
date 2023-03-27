@@ -100,7 +100,9 @@ public final class MIDI: NSObject {
 
    - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
    - parameter uniqueId: the unique ID to use for the input port of the client
-   - parameter midiProtocol: the MIDI protocol to use (default is 2.0)
+   - parameter midiProtocol: the MIDI protocol to use (default is 2.0). NOTE: regardless of the protocol, we are always
+   using the latest CoreMIDI API that accepts a MIDIProtocolID and receives Universal MIDI Packet (UMP) inside of the
+   newer MIDIEventList.
    */
   public init(clientName: String, uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._2_0) {
     self.clientName = clientName

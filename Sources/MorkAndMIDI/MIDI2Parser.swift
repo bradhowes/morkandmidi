@@ -74,6 +74,7 @@ public struct MIDI2Parser {
 public extension MIDI2Parser {
   private var allChannelGroupFilter: Int { return -1 }
   private var neverChannelGroupFilter: Int { return -2 }
+
   /**
    Extract MIDI messages from the packets and process them
 
