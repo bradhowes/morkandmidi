@@ -131,7 +131,7 @@ internal class MIDI1Parser {
       case .programChange: return 1
       case .channelPressure: return 1
       case .pitchBendChange: return 2
-      case .systemExclusive: return 65_537 // !!!
+      case .systemExclusive: return 63
       case .timeCodeQuarterFrame: return 1
       case .songPositionPointer: return 2
       case .songSelect: return 1
@@ -146,4 +146,3 @@ internal class MIDI1Parser {
     }
   }
 }
-

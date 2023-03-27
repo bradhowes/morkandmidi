@@ -49,7 +49,7 @@ class MIDI1ParserTests: XCTestCase {
     }
   }
 
-  func testParser() {
+  func testParserCanParse() {
     sendMessage(bytes: [0x91, 64, 32], channel: -1)
     XCTAssertEqual(receiver.received, ["noteOn 64 32"])
   }
@@ -77,6 +77,49 @@ class MIDI1ParserTests: XCTestCase {
   func testParserMultipleMessages() {
     sendMessage(bytes: [0x91, 64, 32, 0x81, 64, 0])
     XCTAssertEqual(receiver.received, ["noteOn 64 32", "noteOff 64 0"])
+  }
+
+  func testParserIgnoresEmptyPackets() {
+    sendMessage(bytes: [], channel: -1)
+    XCTAssertTrue(receiver.received.isEmpty)
+  }
+
+  func testParserIgnoresSysEx() {
+    let zeros = Array<UInt8>.init(repeating: 0, count: 63)
+    let sysex = [0xF0] + zeros
+    sendMessage(bytes: sysex, channel: -1)
+    XCTAssertTrue(receiver.received.isEmpty)
+  }
+
+  func testParserIgnoresNilReceiver() {
+    midi.receiver = nil
+    sendMessage(bytes: [0x91, 64, 32, 0x81, 64, 0])
+  }
+
+
+  class DummyReceiver: MorkAndMIDI.Receiver {}
+
+  func testDefaultReceiverStubs() {
+    let receiver = DummyReceiver()
+    midi.receiver = receiver
+    sendMessage(bytes: [0x81, 64, 32,
+                        0x91, 63, 0,
+                        0xA1, 65, 123,
+                        0xB1, 123, 45,
+                        0xC1, 12,
+                        0xD1, 23,
+                        0xE1, 12, 34,
+                        0xF1, 98,
+                        0xF2, 76, 54,
+                        0xF3, 32,
+                        0xF6,
+                        0xF8,
+                        0xFA,
+                        0xFB,
+                        0xFC,
+                        0xFE,
+                        0xFF
+                       ])
   }
 
   func testAllMessages() {
@@ -116,5 +159,7 @@ class MIDI1ParserTests: XCTestCase {
                     "stopCurrentSequence",
                     "activeSensing",
                     "reset"])
+
+
   }
 }

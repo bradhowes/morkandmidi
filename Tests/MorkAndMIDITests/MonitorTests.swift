@@ -97,4 +97,19 @@ class MonitorTests: MonitoredTestCase {
       }
     }
   }
+
+  class DummyMonitor: MorkAndMIDI.Monitor {}
+
+  func testMonitorProtocolDefaultStubs() {
+    let dummy = DummyMonitor()
+    dummy.didConnect(to: .init())
+    dummy.didCreate(inputPort: .init())
+    dummy.didInitialize(uniqueId: 1_234)
+    dummy.didSee(uniqueId: 1_234, group: 2, channel: 3)
+    dummy.willDelete(inputPort: .init())
+    dummy.willUninitialize()
+    dummy.willUpdateConnections()
+    dummy.didUpdateConnections(added: [], removed: [])
+    _ = dummy.shouldConnect(to: .init())
+  }
 }

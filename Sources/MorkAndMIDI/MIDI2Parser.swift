@@ -40,6 +40,7 @@ public struct MIDI2Parser {
     case assignableControllerChange = 3
     case relativeRegisteredControllerChange = 4
     case relativeAssignableControllerChange = 5
+    case perNotePitchBendChange = 6
     case noteOff = 8
     case noteOn = 9
     case polyphonicKeyPressure = 10
@@ -150,6 +151,8 @@ public extension MIDI2Parser {
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
           case .relativeAssignableControllerChange:
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
+          case .perNotePitchBendChange:
+            os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
           case .noteOff:
             receiver.noteOff(note: word0.b2, velocity: word0.b3)
           case .noteOn:
@@ -188,6 +191,8 @@ public extension MIDI2Parser {
             receiver.relativeRegisteredControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
           case .relativeAssignableControllerChange:
             receiver.relativeAssignableControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
+          case .perNotePitchBendChange:
+            receiver.perNotePitchBendChange(note: word0.b2, value: word1)
           case .noteOff:
             receiver.noteOff2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
           case .noteOn:

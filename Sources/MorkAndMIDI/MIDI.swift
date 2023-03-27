@@ -49,10 +49,11 @@ public final class MIDI: NSObject {
     }
   }
 
-  private var client: MIDIClientRef = .init()
+  internal var client: MIDIClientRef = .init()
   internal var inputPort: MIDIPortRef = .init()
-  private var ourUniqueId: MIDIUniqueID
-  private let clientName: String
+  internal var ourUniqueId: MIDIUniqueID
+  internal let clientName: String
+
   private lazy var inputPortName = clientName + " In"
   private let parser: MIDI2Parser = .init()
   private var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
@@ -292,19 +293,17 @@ private extension MIDI {
     }
 
     activeConnections.remove(uniqueId)
-    guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else {
-      os_log(.error, log: log, "unable to disconnect - no endpoint with uniqueId %d", uniqueId)
-      return nil
-    }
-
-    os_log(.info, log: log, "disconnecting endpoint %d '%{public}s'", uniqueId, endpoint.displayName)
+    groups.removeValue(forKey: uniqueId)
+    channels.removeValue(forKey: uniqueId)
 
     if let refCon = refCons.removeValue(forKey: uniqueId) {
       refCon.deallocate()
     }
 
-    groups.removeValue(forKey: uniqueId)
-    channels.removeValue(forKey: uniqueId)
+    guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else {
+      os_log(.error, log: log, "unable to disconnect - no endpoint with uniqueId %d", uniqueId)
+      return nil
+    }
 
     return MIDIPortDisconnectSource(inputPort, endpoint)
       .wasSuccessful(log, "MIDIPortDisconnectSource") ? endpoint : nil

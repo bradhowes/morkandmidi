@@ -53,11 +53,6 @@ public protocol Receiver: AnyObject {
   func noteOn2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16)
 
   /**
-   Command the keyboard to release any pressed keys
-   */
-  func allNotesOff()
-
-  /**
    Update the key pressure of a playing note. (MIDI v1)
 
    - parameter note: the MIDI note that was previous started
@@ -140,7 +135,7 @@ public protocol Receiver: AnyObject {
    - parameter note: the MIDI note that to adjust
    - parameter value: the new pitch-bend value to use
    */
-  func pitchBendChangePerNote(note: UInt8, value: UInt32)
+  func perNotePitchBendChange(note: UInt8, value: UInt32)
 
   // MARK: - MIDI v1 and v2 status and utility notifications
 
@@ -188,46 +183,53 @@ public extension Receiver {
   var channel: Int { return -1 }
   var group: Int { return -1 }
 
-  func noteOff(note: UInt8, velocity: UInt8) {}
-  func noteOff2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {}
-  func noteOn(note: UInt8, velocity: UInt8) {}
-  func noteOn2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {}
-  func allNotesOff() {}
-  func polyphonicKeyPressure(note: UInt8, pressure: UInt8) {}
-  func polyphonicKeyPressure2(note: UInt8, pressure: UInt32) {}
-  func controlChange(controller: UInt8, value: UInt8) {}
-  func controlChange2(controller: UInt8, value: UInt32) {}
-  func programChange(program: UInt8) {}
-  func programChange2(program: UInt8, bank: UInt16) {}
-  func channelPressure(pressure: UInt8) {}
-  func channelPressure2(pressure: UInt32) {}
-  func pitchBendChange(value: UInt16) {}
-  func pitchBendChange2(value: UInt32) {}
-  func pitchBendChangePerNote(note: UInt8, value: UInt32) {}
-  func timeCodeQuarterFrame(value: UInt8) {}
-  func songPositionPointer(value: UInt16) {}
-  func songSelect(value: UInt8) {}
-  func tuneRequest() {}
-  func timingClock() {}
-  func startCurrentSequence() {}
-  func continueCurrentSequence() {}
-  func stopCurrentSequence() {}
-  func activeSensing() {}
-  func reset() { allNotesOff() }
+  func noteOff(note: UInt8, velocity: UInt8) {
+    print("noteOff")
+  }
+  func noteOff2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {
+    print("noteOff")
+  }
+  func noteOn(note: UInt8, velocity: UInt8) {
+    print("noteOff")
+  }
+  func noteOn2(note: UInt8, velocity: UInt16, attributeType: UInt8, attributeData: UInt16) {
+    print("noteOff")
+  }
+  func polyphonicKeyPressure(note: UInt8, pressure: UInt8) { print("noteOff") }
+  func polyphonicKeyPressure2(note: UInt8, pressure: UInt32) { print("noteOff") }
+  func controlChange(controller: UInt8, value: UInt8) { print("noteOff") }
+  func controlChange2(controller: UInt8, value: UInt32) { print("noteOff") }
+  func programChange(program: UInt8) { print("noteOff") }
+  func programChange2(program: UInt8, bank: UInt16) { print("noteOff") }
+  func channelPressure(pressure: UInt8) { print("noteOff") }
+  func channelPressure2(pressure: UInt32) { print("noteOff") }
+  func pitchBendChange(value: UInt16) { print("noteOff") }
+  func pitchBendChange2(value: UInt32) { print("noteOff") }
+  func perNotePitchBendChange(note: UInt8, value: UInt32) { print("noteOff") }
+  func timeCodeQuarterFrame(value: UInt8) { print("noteOff") }
+  func songPositionPointer(value: UInt16) { print("noteOff") }
+  func songSelect(value: UInt8) { print("noteOff") }
+  func tuneRequest() { print("noteOff") }
+  func timingClock() { print("noteOff") }
+  func startCurrentSequence() { print("noteOff") }
+  func continueCurrentSequence() { print("noteOff") }
+  func stopCurrentSequence() { print("noteOff") }
+  func activeSensing() { print("noteOff") }
+  func reset() { print("noteOff") }
 
-  func registeredPerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) {}
+  func registeredPerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) { print("noteOff") }
 
-  func assignablePerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) {}
+  func assignablePerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) { print("noteOff") }
 
-  func registeredControllerChange(controller: UInt16, value: UInt32) {}
+  func registeredControllerChange(controller: UInt16, value: UInt32) { print("noteOff") }
 
-  func assignableControllerChange(controller: UInt16, value: UInt32) {}
+  func assignableControllerChange(controller: UInt16, value: UInt32) { print("noteOff") }
 
-  func relativeRegisteredControllerChange(controller: UInt16, value: Int32) {}
+  func relativeRegisteredControllerChange(controller: UInt16, value: Int32) { print("noteOff") }
 
-  func relativeAssignableControllerChange(controller: UInt16, value: Int32) {}
+  func relativeAssignableControllerChange(controller: UInt16, value: Int32) { print("noteOff") }
 
-  func perNoteManagement(note: UInt8, detach: Bool, reset: Bool) {}
+  func perNoteManagement(note: UInt8, detach: Bool, reset: Bool) { print("noteOff") }
 }
 
 // Sentinel to flag if there is a spelling mistake between the protocol and the default implementations.

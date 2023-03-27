@@ -47,10 +47,35 @@ class MIDITests: MonitoredTestCase {
     XCTAssertTrue(midi.start())
   }
 
+  func testManufactureProperty() {
+    midi.start()
+    midi.manufacturer = "B-Ray Software"
+    XCTAssertEqual(midi.manufacturer, "B-Ray Software")
+    XCTAssertEqual(midi.inputPort.manufacturer, midi.manufacturer)
+  }
+
+  func testModelProperty() {
+    midi.start()
+    midi.model = "SoundFonts"
+    XCTAssertEqual(midi.model, "SoundFonts")
+    XCTAssertEqual(midi.inputPort.model, midi.model)
+  }
+
+  func testEnableNetworkConnections() {
+    let mns = MIDINetworkSession.default()
+    midi.start()
+    // As a package, this test has no effect on MIDINetworkSession.
+    midi.enableNetworkConnections = true
+    XCTAssertEqual(mns.connectionPolicy, .noOne)
+    midi.enableNetworkConnections = false
+    XCTAssertEqual(mns.connectionPolicy, .noOne)
+
+  }
+
   func testStopResetsState() {
     doAndWaitFor(expectation: .didUpdateConnections) {
       self.createSource1()
-      self.createSource1()
+      self.createSource2()
     }
     XCTAssertFalse(midi.activeConnections.isEmpty)
 
@@ -79,6 +104,39 @@ class MIDITests: MonitoredTestCase {
 
     XCTAssertFalse(midi.channels.isEmpty)
     XCTAssertFalse(midi.groups.isEmpty)
+
+    midi.stop()
+
+    XCTAssertTrue(midi.activeConnections.isEmpty)
+    XCTAssertTrue(midi.channels.isEmpty)
+    XCTAssertTrue(midi.groups.isEmpty)
+  }
+
+  func testDisconnectWhenSourceGoesAway() {
+    doAndWaitFor(expectation: .didUpdateConnections) {
+      self.createSource1()
+      self.createSource2()
+    }
+    XCTAssertFalse(midi.activeConnections.isEmpty)
+
+    let outputUniqueId: MIDIUniqueID = 12347
+    while !midi.activeConnections.contains(outputUniqueId) {
+      delay(sec: 0.1)
+    }
+
+    XCTAssertTrue(midi.activeConnections.contains(outputUniqueId))
+
+    MIDIEndpointDispose(source2)
+
+    while midi.activeConnections.contains(outputUniqueId) {
+      delay(sec: 0.1)
+    }
+
+    MIDIEndpointDispose(source1)
+
+    while midi.activeConnections.contains(12346) {
+      delay(sec: 0.1)
+    }
 
     midi.stop()
 

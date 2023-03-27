@@ -72,25 +72,25 @@ public protocol Monitor: AnyObject {
 }
 
 /// Default implementations of the Monitor protocol
-extension Monitor {
+public extension Monitor {
 
-  public func didInitialize(uniqueId: MIDIUniqueID) {}
+  func didInitialize(uniqueId: MIDIUniqueID) {}
 
-  public func willUninitialize() {}
+  func willUninitialize() {}
 
-  public func didCreate(inputPort: MIDIPortRef) {}
+  func didCreate(inputPort: MIDIPortRef) {}
 
-  public func willDelete(inputPort: MIDIPortRef) {}
+  func willDelete(inputPort: MIDIPortRef) {}
 
-  public func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool { true }
+  func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool { true }
 
-  public func didConnect(to endpoint: MIDIEndpointRef) {}
+  func didConnect(to endpoint: MIDIEndpointRef) {}
 
-  public func willUpdateConnections() {}
+  func willUpdateConnections() {}
 
-  public func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef]) {}
+  func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef]) {}
 
-  public func didSee(uniqueId: MIDIUniqueID, group: Int, channel: Int) {}
+  func didSee(uniqueId: MIDIUniqueID, group: Int, channel: Int) {}
 }
 
 // Sentinel to flag if there is a spelling mistake between the protocol and the default implementations.
