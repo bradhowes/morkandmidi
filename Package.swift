@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
   name: "MorkAndMIDI",
-  platforms: [.iOS(.v13), .macOS(.v11)],
+  platforms: [.iOS(.v14), .macOS(.v11)],
   products: [
     .library(name: "MorkAndMIDI", targets: ["MorkAndMIDI"]),
   ],
