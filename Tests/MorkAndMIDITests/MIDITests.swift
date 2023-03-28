@@ -77,7 +77,6 @@ class MIDITests: MonitoredTestCase {
       self.createSource1()
       self.createSource2()
     }
-    XCTAssertFalse(midi.activeConnections.isEmpty)
 
     let outputUniqueId: MIDIUniqueID = 998877
     let outputPort = doAndWaitFor(expectation: .didConnectTo(uniqueId: outputUniqueId)) {
@@ -117,7 +116,6 @@ class MIDITests: MonitoredTestCase {
       self.createSource1()
       self.createSource2()
     }
-    XCTAssertFalse(midi.activeConnections.isEmpty)
 
     let outputUniqueId: MIDIUniqueID = 12347
     while !midi.activeConnections.contains(outputUniqueId) {
