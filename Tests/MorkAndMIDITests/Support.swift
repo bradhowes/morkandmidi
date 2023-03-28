@@ -144,6 +144,8 @@ internal class Monitor: MorkAndMIDI.Monitor {
       case .willUninitialize: return "willUnitialize"
       case .didCreateInputPort: return "didCreateInputPort"
       case .willDeleteInputPort: return "willDeleteInputPort"
+      case .didStart: return "didStart"
+      case .didStop: return "didStop"
       case .shouldConnectTo: return "shouldConnectTo"
       case .didConnectTo: return "didConnectTo"
       case .willUpdateConnections: return "willUpdateConnections"
@@ -156,6 +158,8 @@ internal class Monitor: MorkAndMIDI.Monitor {
     case willUninitialize
     case didCreateInputPort
     case willDeleteInputPort
+    case didStart
+    case didStop
     case shouldConnectTo
     case didConnectTo(uniqueId: MIDIUniqueID)
     case willUpdateConnections(lookingFor: [MIDIUniqueID])
@@ -171,6 +175,7 @@ internal class Monitor: MorkAndMIDI.Monitor {
   struct ExpectationInfo {
     let kind: ExpectationKind
     let expectation: XCTestExpectation
+    var fulfilled: Bool = false
   }
 
   var expectationStack = [ExpectationInfo]()
@@ -190,10 +195,12 @@ internal extension Monitor {
   }
 
   func fulfill(_ kind: ExpectationKind) {
-    guard let expectationInfo = expectationStack.last else { return }
+    guard var expectationInfo = expectationStack.last else { return }
     os_log(.info, log: log, "fulfill %{public}s - next: %{public}s", kind.description, expectationInfo.kind.description)
-    if kind == expectationInfo.kind {
+    if kind == expectationInfo.kind && !expectationInfo.fulfilled {
       expectationInfo.expectation.fulfill()
+      expectationInfo.fulfilled = true
+      expectationStack[expectationStack.count - 1] = expectationInfo
     }
   }
 
@@ -215,6 +222,10 @@ internal extension Monitor {
   func didCreate(inputPort: MIDIPortRef) { fulfill(.didCreateInputPort) }
 
   func willDelete(inputPort: MIDIPortRef) { fulfill(.willDeleteInputPort) }
+
+  func didStarf() { fulfill(.didStart) }
+
+  func didStop() { fulfill(.didStop) }
 
   func willUpdateConnections() {
     guard let expectationInfo = expectationStack.last else { return }
@@ -244,7 +255,7 @@ internal extension Monitor {
     }
   }
 
-  func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef]) {
+  func didUpdateConnections(connected: any Sequence<MIDIEndpointRef>, disappeared: any Sequence<MIDIUniqueID>) {
     fulfill(.didUpdateConnections)
   }
 
@@ -265,6 +276,18 @@ extension XCTestCase {
     let delayExpectation = XCTestExpectation()
     delayExpectation.isInverted = true
     wait(for: [delayExpectation], timeout: timeout)
+  }
+
+  struct Timer {
+    let start = Date()
+    var elapsed: TimeInterval { start.distance(to: Date()) }
+  }
+
+  public func checkUntil(elapsed: TimeInterval, pause: Double = 0.1, _ condition: () -> Bool) {
+    let timer = Timer()
+    while !condition() && timer.elapsed < elapsed {
+      delay(sec: pause)
+    }
   }
 }
 
@@ -307,7 +330,9 @@ class MonitoredTestCase : XCTestCase {
                     block: (() -> Void)? = nil) {
     monitor.pushExpectation(expectation)
     if start {
+      // DispatchQueue.global(qos: .utility).async { self.midi.start() }
       midi.start()
+      delay(sec: 0.2)
     }
     block?()
     monitor.waitForExpectation(sec: duration)
@@ -317,9 +342,7 @@ class MonitoredTestCase : XCTestCase {
   func doAndWaitFor<T>(expectation: Monitor.ExpectationKind, duration: Double = 5.0, start: Bool = true,
                        block: (() -> T)? = nil) -> T? {
     monitor.pushExpectation(expectation)
-    if start {
-      midi.start()
-    }
+    if start { midi.start() }
     let value = block?()
     monitor.waitForExpectation(sec: duration)
     return value

@@ -22,7 +22,6 @@ class MIDI2ParserTests: XCTestCase {
   }
 
   override func tearDown() {
-    midi.stop()
     midi = nil
     super.tearDown()
   }

@@ -34,6 +34,16 @@ public protocol Monitor: AnyObject {
   func willDelete(inputPort: MIDIPortRef)
 
   /**
+   Notification that the MIDI instance started up.
+   */
+  func didStart()
+
+  /**
+   Notification that the MIDI instance stopped.
+   */
+  func didStop()
+
+  /**
    Check if the given endpoint should be connected to or not.
 
    - parameter endpoint: the source endpoint being queried
@@ -56,10 +66,10 @@ public protocol Monitor: AnyObject {
   /**
    Notification that active connections were updated.
 
-   - parameter added: collection of endpoints that were newly connected
-   - parameter removed: collection of endpoints that were newly disconnected
+   - parameter connected: collection of endpoints that were newly connected
+   - parameter disappeared: collection of unique IDs that no longer exist as sources
    */
-  func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef])
+  func didUpdateConnections(connected: any Sequence<MIDIEndpointRef>, disappeared: any Sequence<MIDIUniqueID>)
 
   /**
    Notification invoked when there is an incoming MIDI message.
@@ -73,22 +83,26 @@ public protocol Monitor: AnyObject {
 
 /// Default implementations of the Monitor protocol
 public extension Monitor {
-
+  
   func didInitialize(uniqueId: MIDIUniqueID) {}
-
+  
   func willUninitialize() {}
-
+  
   func didCreate(inputPort: MIDIPortRef) {}
-
+  
   func willDelete(inputPort: MIDIPortRef) {}
 
+  func didStart() {}
+
+  func didStop() {}
+  
   func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool { true }
-
+  
   func didConnect(to endpoint: MIDIEndpointRef) {}
-
+  
   func willUpdateConnections() {}
-
-  func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef]) {}
+  
+  func didUpdateConnections(connected: any Sequence<MIDIEndpointRef>, disappeared: any Sequence<MIDIUniqueID>) {}
 
   func didSee(uniqueId: MIDIUniqueID, group: Int, channel: Int) {}
 }

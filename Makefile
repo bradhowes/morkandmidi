@@ -4,6 +4,9 @@ default: coverage
 build: clean
 	swift build -v
 
+retest:
+	swift test -v --enable-code-coverage
+
 test: build
 	swift test -v --enable-code-coverage
 

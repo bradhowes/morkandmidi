@@ -45,7 +45,6 @@ class KnownSourcesTests: XCTestCase {
 
   override func tearDown() {
     MIDIClientDispose(client)
-    midi.stop()
     midi = nil
     super.tearDown()
   }

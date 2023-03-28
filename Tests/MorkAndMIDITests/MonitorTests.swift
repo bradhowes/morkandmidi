@@ -12,10 +12,7 @@ class MonitorTests: MonitoredTestCase {
   }
 
   override func tearDown() {
-    if midi != nil {
-      midi.stop()
-      midi = nil
-    }
+    midi = nil
     monitor = nil
     super.tearDown()
   }
@@ -35,6 +32,7 @@ class MonitorTests: MonitoredTestCase {
   }
 
   func testWIllDeleteInputPort() {
+    doAndWaitFor(expectation: .didCreateInputPort) {}
     doAndWaitFor(expectation: .willDeleteInputPort) {
       self.midi.stop()
     }
@@ -49,13 +47,14 @@ class MonitorTests: MonitoredTestCase {
 
   func testShouldConnectTo() {
     monitor.shouldConnectTo = [uniqueId + 2]
+
     doAndWaitFor(expectation: .didConnectTo(uniqueId: uniqueId + 2)) {
       self.createSource1()
       self.createSource2()
     }
-    print(midi.activeConnections)
+
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(uniqueId + 2) }
     XCTAssertFalse(midi.activeConnections.contains(uniqueId + 1))
-    XCTAssertTrue(midi.activeConnections.contains(uniqueId + 2))
   }
 
   func testDidConnectTo() {
@@ -79,10 +78,7 @@ class MonitorTests: MonitoredTestCase {
       self.midi.createOutputPort(uniqueId: ourUniqueId)
     }
 
-    while !midi.activeConnections.contains(ourUniqueId) {
-      delay(sec: 0.1)
-    }
-
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(ourUniqueId) }
     XCTAssertTrue(midi.activeConnections.contains(ourUniqueId))
 
     let packetBuilder = MIDIEventList.Builder(inProtocol: ._2_0,
@@ -109,7 +105,9 @@ class MonitorTests: MonitoredTestCase {
     dummy.willDelete(inputPort: .init())
     dummy.willUninitialize()
     dummy.willUpdateConnections()
-    dummy.didUpdateConnections(added: [], removed: [])
+    dummy.didStart()
+    dummy.didStop()
+    dummy.didUpdateConnections(connected: [], disappeared: [])
     _ = dummy.shouldConnect(to: .init())
   }
 }

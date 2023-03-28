@@ -24,6 +24,8 @@ public final class MIDI: NSObject {
   @objc dynamic
   public private(set) var activeConnections = Set<MIDIUniqueID>()
 
+  internal var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
+
   /// Returns `true` when the MIDI service is running and accepting messages
   public var isRunning: Bool { inputPort != MIDIPortRef() }
 
@@ -56,7 +58,6 @@ public final class MIDI: NSObject {
 
   private lazy var inputPortName = clientName + " In"
   private let parser: MIDI2Parser = .init()
-  private var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
 
   /**
    Current state of a MIDI connection to the inputPort
@@ -118,7 +119,6 @@ public final class MIDI: NSObject {
    */
   deinit {
     monitor?.willUninitialize()
-    stop()
   }
 }
 
@@ -135,7 +135,10 @@ public extension MIDI {
     guard createInputPort() else { return false }
     monitor?.didCreate(inputPort: inputPort)
     configureNetworkConnections()
-    updateConnections()
+    self.eventQueue.async { [weak self] in
+      self?.updateConnections()
+    }
+    monitor?.didStart()
     return true
   }
 
@@ -158,6 +161,8 @@ public extension MIDI {
     channels.removeAll()
     groups.removeAll()
     activeConnections.removeAll()
+
+    monitor?.didStop()
   }
 
   /**
@@ -255,7 +260,7 @@ private extension MIDI {
     activeConnections.subtract(removed.map { $0.uniqueId })
 
     os_log(.info, log: log, "activeConnections: %{public}s", activeConnections.description)
-    monitor?.didUpdateConnections(added: added, removed: removed)
+    monitor?.didUpdateConnections(connected: added, disappeared: disappeared.map { $0 })
   }
 
   func connectSource(endpoint: MIDIEndpointRef) -> MIDIEndpointRef? {

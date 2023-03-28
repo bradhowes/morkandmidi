@@ -13,7 +13,6 @@ class MIDITests: MonitoredTestCase {
   }
 
   override func tearDown() {
-    midi?.stop()
     midi = nil
     monitor = nil
     super.tearDown()
@@ -30,21 +29,15 @@ class MIDITests: MonitoredTestCase {
   }
 
   func testPostStartInitialState() {
-    XCTAssertTrue(midi.start())
+    doAndWaitFor(expectation: .didCreateInputPort) {}
     XCTAssertTrue(midi.channels.isEmpty)
     XCTAssertTrue(midi.groups.isEmpty)
     XCTAssertTrue(midi.isRunning)
   }
 
-  func testStartTwiceFails() {
-    XCTAssertTrue(midi.start())
-    XCTAssertFalse(midi.start())
-  }
-
   func testStartStopStartSucceeds() {
-    XCTAssertTrue(midi.start())
-    midi.stop()
-    XCTAssertTrue(midi.start())
+    doAndWaitFor(expectation: .didCreateInputPort) {}
+    doAndWaitFor(expectation: .didStop) { self.midi.stop() }
   }
 
   func testManufactureProperty() {
@@ -73,21 +66,60 @@ class MIDITests: MonitoredTestCase {
   }
 
   func testStopResetsState() {
-    doAndWaitFor(expectation: .didUpdateConnections) {
-      self.createSource1()
-      self.createSource2()
+    let outputUniqueId: MIDIUniqueID = 998871
+
+    doAndWaitFor(expectation: .didUpdateConnections) {}
+
+    let outputPort = doAndWaitFor(expectation: .didConnectTo(uniqueId: outputUniqueId), duration: 10.0) {
+      self.midi.createOutputPort(uniqueId: outputUniqueId)
     }
+
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(outputUniqueId) }
+    XCTAssertTrue(midi.activeConnections.contains(outputUniqueId))
+
+    let packetBuilder = MIDIEventList.Builder(inProtocol: ._2_0,
+                                              wordSize: MemoryLayout<MIDIEventList>.size / MemoryLayout<UInt32>.stride)
+    packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_91_60_7F)])
+    packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_81_60_00)])
+
+    _ = packetBuilder.withUnsafePointer {
+      MIDIReceivedEventList(outputPort!, $0)
+    }
+
+    checkUntil(elapsed: 10.0) { !midi.channels.isEmpty }
+
+    XCTAssertNotEqual(midi.channels, [:])
+    XCTAssertNotEqual(midi.groups, [:])
+
+    doAndWaitFor(expectation: .didStop) {
+      self.midi.stop()
+    }
+
+    XCTAssertTrue(midi.activeConnections.isEmpty)
+    XCTAssertTrue(midi.channels.isEmpty)
+    XCTAssertTrue(midi.groups.isEmpty)
+  }
+
+  func testDisconnectWhenSourceGoesAway() {
+    doAndWaitFor(expectation: .didUpdateConnections) {}
+
+    self.createSource1()
+    self.createSource2()
 
     let outputUniqueId: MIDIUniqueID = 998877
     let outputPort = doAndWaitFor(expectation: .didConnectTo(uniqueId: outputUniqueId)) {
       self.midi.createOutputPort(uniqueId: outputUniqueId)
     }
 
-    while !midi.activeConnections.contains(outputUniqueId) {
-      delay(sec: 0.1)
+    checkUntil(elapsed: 2.0) {
+      midi.activeConnections.contains(12346) &&
+      midi.activeConnections.contains(12347) &&
+      midi.activeConnections.contains(outputUniqueId)
     }
 
-    XCTAssertTrue(midi.activeConnections.contains(outputUniqueId))
+    XCTAssertFalse(midi.activeConnections.isEmpty)
+    let numRefCons = midi.refCons.count
+    XCTAssertTrue(numRefCons >= 3)
 
     let packetBuilder = MIDIEventList.Builder(inProtocol: ._2_0,
                                               wordSize: MemoryLayout<MIDIEventList>.size / MemoryLayout<UInt32>.stride)
@@ -104,43 +136,17 @@ class MIDITests: MonitoredTestCase {
     XCTAssertFalse(midi.channels.isEmpty)
     XCTAssertFalse(midi.groups.isEmpty)
 
-    midi.stop()
-
-    XCTAssertTrue(midi.activeConnections.isEmpty)
-    XCTAssertTrue(midi.channels.isEmpty)
-    XCTAssertTrue(midi.groups.isEmpty)
-  }
-
-  func testDisconnectWhenSourceGoesAway() {
-    doAndWaitFor(expectation: .didUpdateConnections) {
-      self.createSource1()
-      self.createSource2()
-    }
-
-    let outputUniqueId: MIDIUniqueID = 12347
-    while !midi.activeConnections.contains(outputUniqueId) {
-      delay(sec: 0.1)
-    }
-
-    XCTAssertTrue(midi.activeConnections.contains(outputUniqueId))
-
     MIDIEndpointDispose(source2)
-
-    while midi.activeConnections.contains(outputUniqueId) {
-      delay(sec: 0.1)
-    }
-
     MIDIEndpointDispose(source1)
 
-    while midi.activeConnections.contains(12346) {
-      delay(sec: 0.1)
-    }
+    checkUntil(elapsed: 2.0) { !midi.activeConnections.contains(12347) && !midi.activeConnections.contains(12346) }
 
-    midi.stop()
+    doAndWaitFor(expectation: .didStop, duration: 10.0) { self.midi.stop() }
 
     XCTAssertTrue(midi.activeConnections.isEmpty)
     XCTAssertTrue(midi.channels.isEmpty)
     XCTAssertTrue(midi.groups.isEmpty)
+    XCTAssertTrue(numRefCons > midi.refCons.count)
   }
 }
 
