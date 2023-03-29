@@ -4,25 +4,25 @@
 import CoreMIDI
 import XCTest
 
-class MIDI1ParserTests: XCTestCase {
+class MIDI1ParserTests: MIDITestCase {
 
-  var midi: MIDI!
   var parser: MIDI1Parser!
-  var receiver: Receiver!
+  var receiver: TestReceiver!
   var packetBuilder: MIDIPacket.Builder!
   let sourceUniqueId: MIDIUniqueID = 10101
 
   override func setUp() {
     super.setUp()
-    midi = MIDI(clientName: "Na-nu Na-nu", uniqueId: 12_345, midiProtocol: ._1_0)
-    parser = MIDI1Parser()
-    receiver = Receiver(self)
+    receiver = TestReceiver()
     midi.receiver = receiver
+    parser = MIDI1Parser()
     packetBuilder = .init(maximumNumberMIDIBytes: 64)
     packetBuilder.timeStamp = 0
   }
 
   override func tearDown() {
+    midi.receiver = nil
+    receiver = nil
     super.tearDown()
   }
 
@@ -50,7 +50,7 @@ class MIDI1ParserTests: XCTestCase {
   }
 
   func testParserCanParse() {
-    sendMessage(bytes: [0x91, 64, 32], channel: -1)
+    sendMessage(bytes: [0x91, 64, 32])
     XCTAssertEqual(receiver.received, ["noteOn 64 32"])
   }
 

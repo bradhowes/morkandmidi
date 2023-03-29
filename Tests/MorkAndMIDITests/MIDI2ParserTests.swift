@@ -4,17 +4,15 @@ import CoreMIDI
 import XCTest
 @testable import MorkAndMIDI
 
-class MIDI2ParserTests: XCTestCase {
+class MIDI2ParserTests: MIDITestCase {
 
-  var receiver: Receiver!
-  var midi: MIDI!
+  var receiver: TestReceiver!
   var packetBuilder: MIDIEventPacket.Builder!
   var parser: MIDI2Parser!
 
   override func setUp() {
     super.setUp()
-    receiver = .init(self)
-    midi = MIDI(clientName: "midi2parserTests", uniqueId: 123)
+    receiver = .init()
     midi.receiver = receiver
     packetBuilder = MIDIEventPacket.Builder(maximumNumberMIDIWords: 64)
     packetBuilder.timeStamp = 0
@@ -22,8 +20,8 @@ class MIDI2ParserTests: XCTestCase {
   }
 
   override func tearDown() {
-    midi = nil
     super.tearDown()
+    receiver = nil
   }
 
   func testUniversalMessageType() {

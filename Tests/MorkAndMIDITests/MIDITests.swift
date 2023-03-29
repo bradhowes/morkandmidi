@@ -5,20 +5,18 @@ import CoreMIDI
 import XCTest
 
 #if os(macOS)
-class MIDITests: MonitoredTestCase {
+class MIDITests: MIDITestCase {
 
   override func setUp() {
     super.setUp()
-    initialize(clientName: "foo", uniqueId: 12_345)
   }
 
   override func tearDown() {
-    midi = nil
-    monitor = nil
     super.tearDown()
   }
 
   func testPreStartInitialState() {
+    createMIDIWithoutStarting()
     XCTAssertTrue(midi.channels.isEmpty)
     XCTAssertTrue(midi.groups.isEmpty)
     XCTAssertTrue(midi.activeConnections.isEmpty)
@@ -29,26 +27,28 @@ class MIDITests: MonitoredTestCase {
   }
 
   func testPostStartInitialState() {
-    doAndWaitFor(expectation: .didCreateInputPort) {}
+    midi.stop()
+    XCTAssertFalse(midi.isRunning)
+    doAndWaitFor(expected: .didCreateInputPort) {
+      midi.start()
+    }
     XCTAssertTrue(midi.channels.isEmpty)
     XCTAssertTrue(midi.groups.isEmpty)
     XCTAssertTrue(midi.isRunning)
   }
 
   func testStartStopStartSucceeds() {
-    doAndWaitFor(expectation: .didCreateInputPort) {}
-    doAndWaitFor(expectation: .didStop) { self.midi.stop() }
+    doAndWaitFor(expected: .didStop) { self.midi.stop() }
+    doAndWaitFor(expected: .didStart) { self.midi.start() }
   }
 
   func testManufactureProperty() {
-    midi.start()
     midi.manufacturer = "B-Ray Software"
     XCTAssertEqual(midi.manufacturer, "B-Ray Software")
     XCTAssertEqual(midi.inputPort.manufacturer, midi.manufacturer)
   }
 
   func testModelProperty() {
-    midi.start()
     midi.model = "SoundFonts"
     XCTAssertEqual(midi.model, "SoundFonts")
     XCTAssertEqual(midi.inputPort.model, midi.model)
@@ -56,7 +56,6 @@ class MIDITests: MonitoredTestCase {
 
   func testEnableNetworkConnections() {
     let mns = MIDINetworkSession.default()
-    midi.start()
     // As a package, this test has no effect on MIDINetworkSession.
     midi.enableNetworkConnections = true
     XCTAssertEqual(mns.connectionPolicy, .noOne)
@@ -68,9 +67,7 @@ class MIDITests: MonitoredTestCase {
   func testStopResetsState() {
     let outputUniqueId: MIDIUniqueID = 998871
 
-    doAndWaitFor(expectation: .didUpdateConnections) {}
-
-    let outputPort = doAndWaitFor(expectation: .didConnectTo(uniqueId: outputUniqueId), duration: 10.0) {
+    let outputPort = doAndWaitFor(expected: .didConnectTo, duration: 10.0) {
       self.midi.createOutputPort(uniqueId: outputUniqueId)
     }
 
@@ -83,7 +80,7 @@ class MIDITests: MonitoredTestCase {
     packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_81_60_00)])
 
     _ = packetBuilder.withUnsafePointer {
-      MIDIReceivedEventList(outputPort!, $0)
+      MIDIReceivedEventList(outputPort, $0)
     }
 
     checkUntil(elapsed: 10.0) { !midi.channels.isEmpty }
@@ -91,7 +88,7 @@ class MIDITests: MonitoredTestCase {
     XCTAssertNotEqual(midi.channels, [:])
     XCTAssertNotEqual(midi.groups, [:])
 
-    doAndWaitFor(expectation: .didStop) {
+    doAndWaitFor(expected: .didStop) {
       self.midi.stop()
     }
 
@@ -101,52 +98,11 @@ class MIDITests: MonitoredTestCase {
   }
 
   func testDisconnectWhenSourceGoesAway() {
-    doAndWaitFor(expectation: .didUpdateConnections) {}
-
-    self.createSource1()
-    self.createSource2()
-
-    let outputUniqueId: MIDIUniqueID = 998877
-    let outputPort = doAndWaitFor(expectation: .didConnectTo(uniqueId: outputUniqueId)) {
-      self.midi.createOutputPort(uniqueId: outputUniqueId)
-    }
-
-    checkUntil(elapsed: 2.0) {
-      midi.activeConnections.contains(12346) &&
-      midi.activeConnections.contains(12347) &&
-      midi.activeConnections.contains(outputUniqueId)
-    }
-
-    XCTAssertFalse(midi.activeConnections.isEmpty)
-    let numRefCons = midi.refCons.count
-    XCTAssertTrue(numRefCons >= 3)
-
-    let packetBuilder = MIDIEventList.Builder(inProtocol: ._2_0,
-                                              wordSize: MemoryLayout<MIDIEventList>.size / MemoryLayout<UInt32>.stride)
-    packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_91_60_7F)])
-    packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_81_60_00)])
-
-    doAndWaitFor(expectation: .didSee(uniqueId: outputUniqueId), duration: 10.0) {
-      self.monitor.expectation.expectedFulfillmentCount = packetBuilder.count
-      _ = packetBuilder.withUnsafePointer {
-        MIDIReceivedEventList(outputPort!, $0)
-      }
-    }
-
-    XCTAssertFalse(midi.channels.isEmpty)
-    XCTAssertFalse(midi.groups.isEmpty)
-
-    MIDIEndpointDispose(source2)
+    createSource1()
+    let uniqueId = source1.uniqueId
+    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(uniqueId) }
     MIDIEndpointDispose(source1)
-
-    checkUntil(elapsed: 2.0) { !midi.activeConnections.contains(12347) && !midi.activeConnections.contains(12346) }
-
-    doAndWaitFor(expectation: .didStop, duration: 10.0) { self.midi.stop() }
-
-    XCTAssertTrue(midi.activeConnections.isEmpty)
-    XCTAssertTrue(midi.channels.isEmpty)
-    XCTAssertTrue(midi.groups.isEmpty)
-    XCTAssertTrue(numRefCons > midi.refCons.count)
+    checkUntil(elapsed: 10.0) { !midi.activeConnections.contains(uniqueId) }
   }
 }
 

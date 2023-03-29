@@ -10,43 +10,12 @@ import XCTest
 //
 // A better way would be to mock out the CoreMIDI API so as to guarantee an environment in which to test the code...
 
-class KnownSourcesTests: XCTestCase {
-
-  let uniqueId: MIDIUniqueID = 12_345
-
-  var midi: MIDI!
-  var monitor: Monitor!
-  var client: MIDIClientRef = .init()
-  var source1: MIDIEndpointRef = .init()
-  var source2: MIDIEndpointRef = .init()
+class KnownSourcesTests: MIDITestCase {
 
   override func setUp() {
     super.setUp()
-    midi = MIDI(clientName: "foo", uniqueId: uniqueId)
-    midi.start()
-
-    let monitor = Monitor(self)
-    midi.monitor = monitor
-    monitor.pushExpectation(.willUpdateConnections(lookingFor: [uniqueId + 1, uniqueId + 2]))
-
-    var err = MIDIClientCreateWithBlock("TestSource" as CFString, &client, nil)
-    XCTAssertEqual(err, noErr)
-
-    err = MIDISourceCreateWithProtocol(client, "Source1" as CFString, ._2_0, &source1)
-    XCTAssertEqual(err, noErr)
-    source1.uniqueId = uniqueId + 1
-
-    err = MIDISourceCreateWithProtocol(client, "Source2" as CFString, ._2_0, &source2)
-    XCTAssertEqual(err, noErr)
-    source2.uniqueId = uniqueId + 2
-
-    monitor.waitForExpectation()
-  }
-
-  override func tearDown() {
-    MIDIClientDispose(client)
-    midi = nil
-    super.tearDown()
+    createSource1()
+    createSource2()
   }
 
   func testIndexing() {
