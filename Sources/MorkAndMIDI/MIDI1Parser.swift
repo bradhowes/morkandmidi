@@ -78,7 +78,7 @@ internal class MIDI1Parser {
       case .continueCurrentSequence: receiver.continueCurrentSequence()
       case .stopCurrentSequence: receiver.stopCurrentSequence()
       case .activeSensing: receiver.activeSensing()
-      case .reset: receiver.reset()
+      case .reset: receiver.systemReset()
       }
 
       index += needed

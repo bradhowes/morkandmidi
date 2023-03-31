@@ -132,7 +132,7 @@ public extension MIDI2Parser {
         case .activeSensing:
           midi.receiver!.activeSensing()
         case .reset:
-          midi.receiver!.reset()
+          midi.receiver!.systemReset()
         case nil:
           os_log(.error, log: log, "invalid SystemCommonAndRealTimeMessage - %d", word0)
         }
