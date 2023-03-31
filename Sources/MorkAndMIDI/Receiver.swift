@@ -178,7 +178,9 @@ public protocol Receiver: AnyObject {
 
 // MARK: - Default implementations of Receiver protocol
 
-public extension Receiver {
+protocol ReceiverWithDefaults: Receiver {}
+
+extension ReceiverWithDefaults {
 
   var channel: Int { return -1 }
   var group: Int { return -1 }
@@ -233,5 +235,5 @@ public extension Receiver {
 }
 
 // Sentinel to flag if there is a spelling mistake between the protocol and the default implementations.
-private class _ReceiverCheck: Receiver {}
+private class _ReceiverCheck: ReceiverWithDefaults {}
 

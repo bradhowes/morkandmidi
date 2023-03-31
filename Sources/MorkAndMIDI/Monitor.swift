@@ -81,8 +81,10 @@ public protocol Monitor: AnyObject {
   func didSee(uniqueId: MIDIUniqueID, group: Int, channel: Int)
 }
 
+public protocol MonitorWithDefaults: Monitor {}
+
 /// Default implementations of the Monitor protocol
-public extension Monitor {
+public extension MonitorWithDefaults {
   
   func didInitialize(uniqueId: MIDIUniqueID) {}
   
@@ -108,4 +110,4 @@ public extension Monitor {
 }
 
 // Sentinel to flag if there is a spelling mistake between the protocol and the default implementations.
-private class _MonitorCheck: Monitor {}
+private class _MonitorCheck: MonitorWithDefaults {}

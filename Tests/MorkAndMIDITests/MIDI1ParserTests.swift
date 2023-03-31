@@ -97,7 +97,7 @@ class MIDI1ParserTests: MIDITestCase {
   }
 
 
-  class DummyReceiver: MorkAndMIDI.Receiver {}
+  class DummyReceiver: MorkAndMIDI.ReceiverWithDefaults {}
 
   func testDefaultReceiverStubs() {
     let receiver = DummyReceiver()

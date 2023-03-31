@@ -4,7 +4,7 @@ import os
 import CoreMIDI
 import XCTest
 
-internal class TestReceiver: Receiver {
+internal class TestReceiver: ReceiverWithDefaults {
 
   typealias Fulfiller = () -> Void
 

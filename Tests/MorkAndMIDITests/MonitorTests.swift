@@ -92,7 +92,7 @@ class MonitorTests: MIDITestCase {
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
   }
 
-  class DummyMonitor: MorkAndMIDI.Monitor {}
+  class DummyMonitor: MorkAndMIDI.MonitorWithDefaults {}
 
   func testMonitorProtocolDefaultStubs() {
     let dummy = DummyMonitor()

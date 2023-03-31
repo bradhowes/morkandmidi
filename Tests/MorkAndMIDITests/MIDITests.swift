@@ -104,6 +104,16 @@ class MIDITests: MIDITestCase {
     MIDIEndpointDispose(source1)
     checkUntil(elapsed: 10.0) { !midi.activeConnections.contains(uniqueId) }
   }
+
+  func testConnectToDisconnectFrom() {
+    createSource2()
+    let uniqueId = source2.uniqueId
+    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(uniqueId) }
+    midi.disconnect(from: uniqueId)
+    checkUntil(elapsed: 10.0) { !midi.activeConnections.contains(uniqueId) }
+    XCTAssertTrue(midi.connect(to: uniqueId))
+    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(uniqueId) }
+  }
 }
 
 #endif

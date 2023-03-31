@@ -24,8 +24,6 @@ public final class MIDI: NSObject {
   @objc dynamic
   public private(set) var activeConnections = Set<MIDIUniqueID>()
 
-  internal var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
-
   /// Returns `true` when the MIDI service is running and accepting messages
   public var isRunning: Bool { inputPort != MIDIPortRef() }
 
@@ -55,6 +53,7 @@ public final class MIDI: NSObject {
   internal var inputPort: MIDIPortRef = .init()
   internal var ourUniqueId: MIDIUniqueID
   internal let clientName: String
+  internal var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
 
   private lazy var inputPortName = clientName + " In"
   private let parser: MIDI2Parser = .init()
@@ -64,15 +63,15 @@ public final class MIDI: NSObject {
    */
   public struct SourceConnectionState: Equatable {
     /// Unique ID for the device endpoint to connect to
-    let uniqueId: MIDIUniqueID
+    public let uniqueId: MIDIUniqueID
     /// The display name for the endpoint
-    let displayName: String
+    public let displayName: String
     /// True if connected to it and able to receive MIDI commands from endpoint
-    let connected: Bool
+    public let connected: Bool
     /// Last seen channel in a MIDI message from this device
-    let channel: Int?
+    public let channel: Int?
     /// Last seen group in a MIDI message from this device
-    let group: Int?
+    public let group: Int?
   }
 
   /// Obtain current state of MIDI connections
@@ -176,6 +175,35 @@ public extension MIDI {
     groups[uniqueId] = group
     channels[uniqueId] = channel
     monitor?.didSee(uniqueId: uniqueId, group: group, channel: channel)
+  }
+
+  /**
+   Establish a connection to the endpoint with the given unique ID
+
+   - parameter uniqueId: the unique ID of the endpoint
+   - returns: true if established
+   */
+  func connect(to uniqueId: MIDIUniqueID) -> Bool {
+    guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else { return false }
+    return eventQueue.sync {
+      guard let _ = self.connectSource(endpoint: endpoint) else { return false }
+      self.activeConnections.insert(uniqueId)
+      return true
+    }
+  }
+
+  /**
+   Remove a connection from the endpoint with the given unique ID
+
+   - parameter uniqueId: the unique ID of the endpoint
+   - returns: true if disconnected
+   */
+  func disconnect(from uniqueId: MIDIUniqueID) {
+    guard let _ = KnownSources.matching(uniqueId: uniqueId) else { return }
+    eventQueue.sync {
+      _ = self.disconnectSource(uniqueId: uniqueId)
+      self.activeConnections.remove(uniqueId)
+    }
   }
 }
 

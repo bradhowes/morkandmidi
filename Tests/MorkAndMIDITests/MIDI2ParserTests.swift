@@ -249,7 +249,7 @@ class MIDI2ParserTests: MIDITestCase {
     XCTAssertTrue(receiver.received.isEmpty)
   }
 
-  class DummyReceiver: MorkAndMIDI.Receiver {}
+  class DummyReceiver: MorkAndMIDI.ReceiverWithDefaults {}
 
   func testReceiverProtocolDefaultStubs() {
     let dummy = DummyReceiver()
