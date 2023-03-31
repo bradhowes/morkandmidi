@@ -46,17 +46,17 @@ public protocol Monitor: AnyObject {
   /**
    Check if the given endpoint should be connected to or not.
 
-   - parameter endpoint: the source endpoint being queried
+   - parameter uniqueId: the source endpoint being queried
    - returns: true if the connection should be established
    */
-  func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool
+  func shouldConnect(to uniqueId: MIDIUniqueID) -> Bool
 
   /**
    Notification that a given endpoint was connected to
 
-   - parameter endpoint: the source endpoint of the connection
+   - parameter uniqueId: the source endpoint of the connection
    */
-  func didConnect(to endpoint: MIDIEndpointRef)
+  func didConnect(to uniqueId: MIDIUniqueID)
 
   /**
    Notification that active connections will be updated
@@ -98,9 +98,9 @@ public extension MonitorWithDefaults {
 
   func didStop() {}
   
-  func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool { true }
+  func shouldConnect(to uniqueId: MIDIUniqueID) -> Bool { true }
   
-  func didConnect(to endpoint: MIDIEndpointRef) {}
+  func didConnect(to uniqueId: MIDIUniqueID) {}
   
   func willUpdateConnections() {}
   

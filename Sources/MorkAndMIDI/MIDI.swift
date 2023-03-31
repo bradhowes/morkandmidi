@@ -301,7 +301,7 @@ private extension MIDI {
       return nil
     }
 
-    guard monitor?.shouldConnect(to: endpoint) ?? true else {
+    guard monitor?.shouldConnect(to: uniqueId) ?? true else {
       os_log(.info, log: log, "connectSource - blocked by monitor")
       return nil
     }
@@ -313,7 +313,7 @@ private extension MIDI {
     let success = MIDIPortConnectSource(inputPort, endpoint, refCon)
       .wasSuccessful(log, "MIDIPortConnectSource")
     if success {
-      monitor?.didConnect(to: endpoint)
+//      monitor?.didConnect(to: uniqueId)
     }
 
     return success ? endpoint : nil
