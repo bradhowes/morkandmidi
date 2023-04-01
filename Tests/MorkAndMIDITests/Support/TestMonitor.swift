@@ -5,6 +5,7 @@ import CoreMIDI
 import XCTest
 
 internal class TestMonitor: Monitor {
+
   private let log: OSLog = .init(subsystem: "Testing", category: "Monitor")
 
   typealias Fulfiller = () -> Void
@@ -46,7 +47,7 @@ internal class TestMonitor: Monitor {
   let expected: ExpectationKind?
   let fulfiller: Fulfiller?
 
-  var didConnectToValues = [MIDIEndpointRef]()
+  var didConnectToValues = [MIDIUniqueID]()
   var didSeeValues = [(uniqueId: MIDIUniqueID, group: Int, channel: Int)]()
 
   init() {
@@ -76,13 +77,13 @@ internal extension TestMonitor {
   func didStop() { fulfill(.didStop) }
   func willUpdateConnections() { fulfill(.willUpdateConnections) }
 
-  func shouldConnect(to endpoint: MIDIEndpointRef) -> Bool {
+  func shouldConnect(to uniqueId: MIDIUniqueID) -> Bool {
     fulfill(.shouldConnectTo)
-    return shouldConnectTo.isEmpty || shouldConnectTo.contains(endpoint.uniqueId)
+    return shouldConnectTo.isEmpty || shouldConnectTo.contains(uniqueId)
   }
 
-  func didConnect(to endpoint: MIDIEndpointRef) {
-    didConnectToValues.append(endpoint)
+  func didConnect(to uniqueId: MIDIUniqueID) {
+    didConnectToValues.append(uniqueId)
     fulfill(.didConnectTo)
   }
 

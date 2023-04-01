@@ -174,7 +174,7 @@ class MIDI2ParserTests: MIDITestCase {
     XCTAssertEqual(receiver.received[6], "continueCurrentSequence")
     XCTAssertEqual(receiver.received[7], "stopCurrentSequence")
     XCTAssertEqual(receiver.received[8], "activeSensing")
-    XCTAssertEqual(receiver.received[9], "reset")
+    XCTAssertEqual(receiver.received[9], "systemReset")
   }
 
   func testParsingMIDI2ChannelVoiceMessages() {

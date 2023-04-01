@@ -4,7 +4,7 @@ import os
 import CoreMIDI
 import XCTest
 
-internal class TestReceiver: ReceiverWithDefaults {
+internal class TestReceiver: Receiver {
 
   typealias Fulfiller = () -> Void
 
@@ -105,8 +105,8 @@ internal class TestReceiver: ReceiverWithDefaults {
   func activeSensing() {
     received.append("activeSensing")
   }
-  func reset() {
-    received.append("reset")
+  func systemReset() {
+    received.append("systemReset")
   }
   func registeredPerNoteControllerChange(note: UInt8, controller: UInt8, value: UInt32) {
     received.append("registeredPerNoteControllerChange \(note) \(controller) \(value)")
@@ -128,5 +128,8 @@ internal class TestReceiver: ReceiverWithDefaults {
   }
   func perNoteManagement(note: UInt8, detach: Bool, reset: Bool) {
     received.append("perNoteManagement \(note) \(detach) \(reset)")
+  }
+  func perNotePitchBendChange(note: UInt8, value: UInt32) {
+    received.append("perNotePitchBendChange \(note) \(value)")
   }
 }

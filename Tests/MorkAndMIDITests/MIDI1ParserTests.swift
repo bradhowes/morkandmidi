@@ -158,8 +158,6 @@ class MIDI1ParserTests: MIDITestCase {
                     "continueCurrentSequence",
                     "stopCurrentSequence",
                     "activeSensing",
-                    "reset"])
-
-
+                    "systemReset"])
   }
 }

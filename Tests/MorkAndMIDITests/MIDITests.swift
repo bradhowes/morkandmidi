@@ -67,11 +67,9 @@ class MIDITests: MIDITestCase {
   func testStopResetsState() {
     let outputUniqueId: MIDIUniqueID = 998871
 
-    let outputPort = doAndWaitFor(expected: .didConnectTo, duration: 10.0) {
-      self.midi.createOutputPort(uniqueId: outputUniqueId)
-    }
+    let outputPort = self.midi.createOutputPort(uniqueId: outputUniqueId)
+    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(outputUniqueId) }
 
-    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(outputUniqueId) }
     XCTAssertTrue(midi.activeConnections.contains(outputUniqueId))
 
     let packetBuilder = MIDIEventList.Builder(inProtocol: ._2_0,
