@@ -98,7 +98,7 @@ class MonitorTests: MIDITestCase {
     let dummy = DummyMonitor()
     dummy.didConnect(to: .init())
     dummy.didCreate(inputPort: .init())
-    dummy.didInitialize(uniqueId: 1_234)
+    dummy.didInitialize()
     dummy.didSee(uniqueId: 1_234, group: 2, channel: 3)
     dummy.willDelete(inputPort: .init())
     dummy.willUninitialize()

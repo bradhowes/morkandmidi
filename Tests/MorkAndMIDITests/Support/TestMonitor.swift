@@ -42,7 +42,6 @@ internal class TestMonitor: Monitor {
 
   var connectionChannels = [MIDIUniqueID: (group: Int, channel: Int)]()
   var shouldConnectTo = [MIDIUniqueID]()
-  var ourUniqueId: MIDIUniqueID?
 
   let expected: ExpectationKind?
   let fulfiller: Fulfiller?
@@ -65,10 +64,7 @@ internal class TestMonitor: Monitor {
 
 internal extension TestMonitor {
 
-  func didInitialize(uniqueId: MIDIUniqueID) {
-    ourUniqueId = uniqueId
-    fulfill(.didInitialize)
-  }
+  func didInitialize() { fulfill(.didInitialize) }
 
   func willUninitialize() { fulfill(.willUninitialize) }
   func didCreate(inputPort: MIDIPortRef) { fulfill(.didCreateInputPort) }

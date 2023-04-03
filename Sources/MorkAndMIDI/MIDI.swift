@@ -130,13 +130,17 @@ public extension MIDI {
   func start() -> Bool {
     guard inputPort == MIDIPortRef() else { return false }
     guard createClient() else { return false }
-    monitor?.didInitialize(uniqueId: ourUniqueId)
+    monitor?.didInitialize()
+
     guard createInputPort() else { return false }
+    initializeInputPort()
     monitor?.didCreate(inputPort: inputPort)
+
     configureNetworkConnections()
     self.eventQueue.async { [weak self] in
       self?.updateConnections()
     }
+
     monitor?.didStart()
     return true
   }
@@ -223,9 +227,6 @@ internal extension MIDI {
     outputPort.uniqueId = uniqueId
     return outputPort
   }
-}
-
-private extension MIDI {
 
   /**
    Create a new MIDI client to host all of the MIDI connections.
@@ -260,10 +261,12 @@ private extension MIDI {
     }
 
     guard result.wasSuccessful(log, "MIDIInputPortCreateWithProtocol") else { return false }
-    initializeInputPort()
     return true
   }
+}
 
+private extension MIDI {
+  
   func processEventList(eventList: UnsafePointer<MIDIEventList>, uniqueId: MIDIUniqueID) {
     eventList.unsafeSequence().forEach { eventPacket in
       parser.parse(midi: self, uniqueId: uniqueId, words: eventPacket.words())
@@ -276,7 +279,7 @@ private extension MIDI {
     monitor?.willUpdateConnections()
 
     // Connect to newly available sources
-    let active = KnownSources.all
+    let active = KnownSources.all.filter { $0.uniqueId != ourUniqueId }
     let added = active.compactMap { connectSource(endpoint: $0) }
 
     // Disconnect from sources that have gone away
@@ -313,7 +316,7 @@ private extension MIDI {
     let success = MIDIPortConnectSource(inputPort, endpoint, refCon)
       .wasSuccessful(log, "MIDIPortConnectSource")
     if success {
-//      monitor?.didConnect(to: uniqueId)
+      monitor?.didConnect(to: uniqueId)
     }
 
     return success ? endpoint : nil
@@ -354,9 +357,6 @@ private extension MIDI {
     inputPort.set(kMIDIPropertyManufacturer, to: manufacturer)
     inputPort.set(kMIDIPropertyModel, to: model)
     inputPort.set(kMIDIPropertyDisplayName, to: inputPort.name)
-//    inputPort.set(kMIDIPropertyReceivesNotes, to: 1)
-//    inputPort.set(kMIDIPropertyReceivesProgramChanges, to: 1)
-//    inputPort.set(kMIDIPropertyMaxReceiveChannels, to: 16)
   }
 
   func configureNetworkConnections() {

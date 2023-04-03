@@ -38,8 +38,21 @@ class MIDITests: MIDITestCase {
   }
 
   func testStartStopStartSucceeds() {
+    //
+    _ = midi.createClient()
+    _ = midi.createInputPort()
     doAndWaitFor(expected: .didStop) { self.midi.stop() }
     doAndWaitFor(expected: .didStart) { self.midi.start() }
+  }
+
+  func testCreatingClientOnce() {
+    _ = midi.createClient()
+    XCTAssertTrue(midi.isRunning)
+  }
+
+  func testCreatingInputPortOnce() {
+    _ = midi.createInputPort()
+    XCTAssertTrue(midi.isRunning)
   }
 
   func testManufactureProperty() {
@@ -97,10 +110,19 @@ class MIDITests: MIDITestCase {
 
   func testDisconnectWhenSourceGoesAway() {
     createSource1()
-    let uniqueId = source1.uniqueId
-    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(uniqueId) }
+    createSource2()
+
+    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(source1.uniqueId) }
+    checkUntil(elapsed: 10.0) { midi.activeConnections.contains(source2.uniqueId) }
+
     MIDIEndpointDispose(source1)
-    checkUntil(elapsed: 10.0) { !midi.activeConnections.contains(uniqueId) }
+    checkUntil(elapsed: 10.0) { !midi.activeConnections.contains(source1.uniqueId) }
+    midi.disconnect(from: source1.uniqueId)
+
+    midi.disconnect(from: source2.uniqueId)
+    MIDIEndpointDispose(source2)
+    checkUntil(elapsed: 10.0) { !midi.activeConnections.contains(source2.uniqueId) }
+
   }
 
   func testConnectToDisconnectFrom() {

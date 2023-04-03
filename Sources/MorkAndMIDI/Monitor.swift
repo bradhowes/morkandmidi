@@ -9,10 +9,8 @@ public protocol Monitor: AnyObject {
 
   /**
    Notification that the MIDI system is initialized and ready to receive messages
-
-   - parameter uniqueId: the unique ID of the virtual MIDI endpoint that will receive incoming messages
    */
-  func didInitialize(uniqueId: MIDIUniqueID)
+  func didInitialize()
 
   /**
    Notification that the MIDI system has been torn down.
@@ -86,7 +84,7 @@ public protocol MonitorWithDefaults: Monitor {}
 /// Default implementations of the Monitor protocol
 public extension MonitorWithDefaults {
   
-  func didInitialize(uniqueId: MIDIUniqueID) {}
+  func didInitialize() {}
   
   func willUninitialize() {}
   
