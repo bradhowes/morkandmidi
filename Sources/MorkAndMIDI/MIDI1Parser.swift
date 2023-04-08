@@ -61,24 +61,24 @@ internal class MIDI1Parser {
       }
 
       switch command {
-      case .noteOff: receiver.noteOff(note: bytes[index], velocity: bytes[index + 1])
-      case .noteOn: receiver.noteOn(note: bytes[index], velocity: bytes[index + 1])
-      case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(note: bytes[index], pressure: bytes[index + 1])
-      case .controlChange: receiver.controlChange(controller: bytes[index], value: bytes[index + 1])
-      case .programChange: receiver.programChange(program: bytes[index])
-      case .channelPressure: receiver.channelPressure(pressure: bytes[index])
-      case .pitchBendChange: receiver.pitchBendChange(value: UInt16(bytes[index + 1]) << 7 + UInt16(bytes[index]))
+      case .noteOff: receiver.noteOff(source: uniqueId, note: bytes[index], velocity: bytes[index + 1])
+      case .noteOn: receiver.noteOn(source: uniqueId, note: bytes[index], velocity: bytes[index + 1])
+      case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: uniqueId, note: bytes[index], pressure: bytes[index + 1])
+      case .controlChange: receiver.controlChange(source: uniqueId, controller: bytes[index], value: bytes[index + 1])
+      case .programChange: receiver.programChange(source: uniqueId, program: bytes[index])
+      case .channelPressure: receiver.channelPressure(source: uniqueId, pressure: bytes[index])
+      case .pitchBendChange: receiver.pitchBendChange(source: uniqueId, value: UInt16(bytes[index + 1]) << 7 + UInt16(bytes[index]))
       case .systemExclusive: break
-      case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(value: bytes[index])
-      case .songPositionPointer: receiver.songPositionPointer(value: UInt16(bytes[index + 1]) << 7 + UInt16(bytes[index]))
-      case .songSelect: receiver.songSelect(value: bytes[index])
-      case .tuneRequest: receiver.tuneRequest()
-      case .timingClock: receiver.timingClock()
-      case .startCurrentSequence: receiver.startCurrentSequence()
-      case .continueCurrentSequence: receiver.continueCurrentSequence()
-      case .stopCurrentSequence: receiver.stopCurrentSequence()
-      case .activeSensing: receiver.activeSensing()
-      case .reset: receiver.systemReset()
+      case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(source: uniqueId, value: bytes[index])
+      case .songPositionPointer: receiver.songPositionPointer(source: uniqueId, value: UInt16(bytes[index + 1]) << 7 + UInt16(bytes[index]))
+      case .songSelect: receiver.songSelect(source: uniqueId, value: bytes[index])
+      case .tuneRequest: receiver.tuneRequest(source: uniqueId)
+      case .timingClock: receiver.timingClock(source: uniqueId)
+      case .startCurrentSequence: receiver.startCurrentSequence(source: uniqueId)
+      case .continueCurrentSequence: receiver.continueCurrentSequence(source: uniqueId)
+      case .stopCurrentSequence: receiver.stopCurrentSequence(source: uniqueId)
+      case .activeSensing: receiver.activeSensing(source: uniqueId)
+      case .reset: receiver.systemReset(source: uniqueId)
       }
 
       index += needed

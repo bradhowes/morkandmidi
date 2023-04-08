@@ -114,25 +114,25 @@ public extension MIDI2Parser {
       case .systemCommonAndRealTime:
         switch SystemCommonAndRealTimeMessage.from(word: word0)  {
         case .timeCodeQuarterFrame:
-          midi.receiver!.timeCodeQuarterFrame(value: word0.b2)
+          midi.receiver!.timeCodeQuarterFrame(source: uniqueId, value: word0.b2)
         case .songPositionPointer:
-          midi.receiver!.songPositionPointer(value: toMidi1Word(msb: word0.b3, lsb: word0.b2))
+          midi.receiver!.songPositionPointer(source: uniqueId, value: toMidi1Word(msb: word0.b3, lsb: word0.b2))
         case .songSelect:
-          midi.receiver!.songSelect(value: word0.b2)
+          midi.receiver!.songSelect(source: uniqueId, value: word0.b2)
         case .tuneRequest:
-          midi.receiver!.tuneRequest()
+          midi.receiver!.tuneRequest(source: uniqueId)
         case .timingClock:
-          midi.receiver!.timingClock()
+          midi.receiver!.timingClock(source: uniqueId)
         case .startCurrentSequence:
-          midi.receiver!.startCurrentSequence()
+          midi.receiver!.startCurrentSequence(source: uniqueId)
         case .continueCurrentSequence:
-          midi.receiver!.continueCurrentSequence()
+          midi.receiver!.continueCurrentSequence(source: uniqueId)
         case .stopCurrentSequence:
-          midi.receiver!.stopCurrentSequence()
+          midi.receiver!.stopCurrentSequence(source: uniqueId)
         case .activeSensing:
-          midi.receiver!.activeSensing()
+          midi.receiver!.activeSensing(source: uniqueId)
         case .reset:
-          midi.receiver!.systemReset()
+          midi.receiver!.systemReset(source: uniqueId)
         case nil:
           os_log(.error, log: log, "invalid SystemCommonAndRealTimeMessage - %d", word0)
         }
@@ -154,19 +154,19 @@ public extension MIDI2Parser {
           case .perNotePitchBendChange:
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
           case .noteOff:
-            receiver.noteOff(note: word0.b2, velocity: word0.b3)
+            receiver.noteOff(source: uniqueId, note: word0.b2, velocity: word0.b3)
           case .noteOn:
-            receiver.noteOn(note: word0.b2, velocity: word0.b3)
+            receiver.noteOn(source: uniqueId, note: word0.b2, velocity: word0.b3)
           case .polyphonicKeyPressure:
-            receiver.polyphonicKeyPressure(note: word0.b2, pressure: word0.b3)
+            receiver.polyphonicKeyPressure(source: uniqueId, note: word0.b2, pressure: word0.b3)
           case .controlChange:
-            receiver.controlChange(controller: word0.b2, value: word0.b3)
+            receiver.controlChange(source: uniqueId, controller: word0.b2, value: word0.b3)
           case .programChange:
-            receiver.programChange(program: word0.b2)
+            receiver.programChange(source: uniqueId, program: word0.b2)
           case .channelPressure:
-            receiver.channelPressure(pressure: word0.b2)
+            receiver.channelPressure(source: uniqueId, pressure: word0.b2)
           case .pitchBendChange:
-            receiver.pitchBendChange(value: toMidi1Word(msb: word0.b3, lsb: word0.b2))
+            receiver.pitchBendChange(source: uniqueId, value: toMidi1Word(msb: word0.b3, lsb: word0.b2))
           case .perNoteManagement:
             os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", word0)
           case nil:
@@ -180,39 +180,39 @@ public extension MIDI2Parser {
           let word1 = words[index.advanced(by: 1)]
           switch ChannelVoiceMessage.from(word: word0)  {
           case .registeredPerNoteControllerChange:
-            receiver.registeredPerNoteControllerChange(note: word0.b2, controller: word0.b3, value: word1)
+            receiver.registeredPerNoteControllerChange(source: uniqueId, note: word0.b2, controller: word0.b3, value: word1)
           case .assignablePerNoteControllerChange:
-            receiver.assignablePerNoteControllerChange(note: word0.b2, controller: word0.b3, value: word1)
+            receiver.assignablePerNoteControllerChange(source: uniqueId, note: word0.b2, controller: word0.b3, value: word1)
           case .registeredControllerChange:
-            receiver.registeredControllerChange(controller: word0.s1, value: word1)
+            receiver.registeredControllerChange(source: uniqueId, controller: word0.s1, value: word1)
           case .assignableControllerChange:
-            receiver.assignableControllerChange(controller: word0.s1, value: word1)
+            receiver.assignableControllerChange(source: uniqueId, controller: word0.s1, value: word1)
           case .relativeRegisteredControllerChange:
-            receiver.relativeRegisteredControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
+            receiver.relativeRegisteredControllerChange(source: uniqueId, controller: word0.s1, value: Int32(bitPattern: word1))
           case .relativeAssignableControllerChange:
-            receiver.relativeAssignableControllerChange(controller: word0.s1, value: Int32(bitPattern: word1))
+            receiver.relativeAssignableControllerChange(source: uniqueId, controller: word0.s1, value: Int32(bitPattern: word1))
           case .perNotePitchBendChange:
-            receiver.perNotePitchBendChange(note: word0.b2, value: word1)
+            receiver.perNotePitchBendChange(source: uniqueId, note: word0.b2, value: word1)
           case .noteOff:
-            receiver.noteOff2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
+            receiver.noteOff2(source: uniqueId, note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
           case .noteOn:
-            receiver.noteOn2(note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
+            receiver.noteOn2(source: uniqueId, note: word0.b2, velocity: word1.s0, attributeType: word0.b3, attributeData: word1.s1)
           case .polyphonicKeyPressure:
-            receiver.polyphonicKeyPressure2(note: word0.b2, pressure: word1)
+            receiver.polyphonicKeyPressure2(source: uniqueId, note: word0.b2, pressure: word1)
           case .controlChange:
-            receiver.controlChange2(controller: word0.b2, value: word1)
+            receiver.controlChange2(source: uniqueId, controller: word0.b2, value: word1)
           case .programChange:
             if word0.b3[0] {
-              receiver.programChange2(program: word1.b0, bank: word1.s1)
+              receiver.programChange2(source: uniqueId, program: word1.b0, bank: word1.s1)
             } else {
-              receiver.programChange(program: word1.b0)
+              receiver.programChange(source: uniqueId, program: word1.b0)
             }
           case .channelPressure:
-            receiver.channelPressure2(pressure: word1)
+            receiver.channelPressure2(source: uniqueId, pressure: word1)
           case .pitchBendChange:
-            receiver.pitchBendChange2(value: word1)
+            receiver.pitchBendChange2(source: uniqueId, value: word1)
           case .perNoteManagement:
-            receiver.perNoteManagement(note: word0.b2, detach: word0.b3[1], reset: word0.b3[0])
+            receiver.perNoteManagement(source: uniqueId, note: word0.b2, detach: word0.b3[1], reset: word0.b3[0])
           case nil:
             os_log(.error, log: log, "invalid ChannelVoiceMessage - %d", word0)
           }
