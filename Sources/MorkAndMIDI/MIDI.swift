@@ -128,6 +128,7 @@ public extension MIDI {
    */
   @discardableResult
   func start() -> Bool {
+    guard Thread.isMainThread else { fatalError("MIDI must start on the main thread for proper operation.") }
     guard inputPort == MIDIPortRef() else { return false }
     guard createClient() else { return false }
     monitor?.didInitialize()
