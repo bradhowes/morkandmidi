@@ -10,6 +10,8 @@ import CoreMIDI
 public final class MIDI: NSObject {
   private let log: OSLog = Logging.logger("MIDI")
 
+  public let midi2Capable: Bool
+
   /// The MIDI protocol we are expecting.
   public let midiProtocol: MIDIProtocolID
 
@@ -56,7 +58,8 @@ public final class MIDI: NSObject {
   internal var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
 
   private lazy var inputPortName = clientName + " In"
-  private let parser: MIDI2Parser = .init()
+  private let parser1: MIDI1Parser = .init()
+  private let parser2: MIDI2Parser = .init()
 
   /**
    Current state of a MIDI connection to the inputPort
@@ -98,6 +101,22 @@ public final class MIDI: NSObject {
 
   /**
    Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic.
+   NOTE: this uses the legacy MIDIPacketList API.
+
+   - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
+   - parameter uniqueId: the unique ID to use for the input port of the client
+   */
+  public init(clientName: String, uniqueId: MIDIUniqueID, legacyAPI: Bool) {
+    self.midi2Capable = false
+    self.midiProtocol = ._1_0
+    self.clientName = clientName
+    self.ourUniqueId = uniqueId
+    self.eventQueue = Self.makeQueue(clientName: clientName)
+    super.init()
+  }
+
+  /**
+   Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic.
 
    - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
    - parameter uniqueId: the unique ID to use for the input port of the client
@@ -106,9 +125,10 @@ public final class MIDI: NSObject {
    newer MIDIEventList.
    */
   public init(clientName: String, uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._2_0) {
+    self.midi2Capable = true
+    self.midiProtocol = midiProtocol
     self.clientName = clientName
     self.ourUniqueId = uniqueId
-    self.midiProtocol = midiProtocol
     self.eventQueue = Self.makeQueue(clientName: clientName)
     super.init()
   }
@@ -253,24 +273,40 @@ internal extension MIDI {
     guard inputPort == MIDIEndpointRef() else { return false }
 
     let inputPortName = inputPortName as CFString
-    let result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol,
-                                                 &inputPort) { [weak self] eventListPointer, refCon in
-      guard let self = self else { return }
-      self.eventQueue.async {
-        self.processEventList(eventList: eventListPointer, uniqueId: unboxRefCon(refCon))
+
+    let result: OSStatus
+
+    if midi2Capable {
+      result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol,
+                                               &inputPort) { [weak self] eventListPointer, refCon in
+        guard let self = self else { return }
+        self.eventQueue.async {
+          self.processEventList(eventList: eventListPointer, uniqueId: unboxRefCon(refCon))
+        }
+      }
+    } else {
+      result = MIDIInputPortCreateWithBlock(client, inputPortName,
+                                            &inputPort) { [weak self] packetListPointer, refCon in
+        guard let self = self else { return }
+        self.processPacketList(packetList: packetListPointer, uniqueId: unboxRefCon(refCon))
       }
     }
 
-    guard result.wasSuccessful(log, "MIDIInputPortCreateWithProtocol") else { return false }
-    return true
+    return result.wasSuccessful(log, "MIDIInputPortCreateWithProtocol")
   }
 }
 
 private extension MIDI {
-  
+
+  func processPacketList(packetList: UnsafePointer<MIDIPacketList>, uniqueId: MIDIUniqueID) {
+    for packet in packetList.unsafeSequence() {
+      parser1.parse(midi: self, uniqueId: uniqueId, bytes: MIDIPacket.ByteCollection(packet))
+    }
+  }
+
   func processEventList(eventList: UnsafePointer<MIDIEventList>, uniqueId: MIDIUniqueID) {
     eventList.unsafeSequence().forEach { eventPacket in
-      parser.parse(midi: self, uniqueId: uniqueId, words: eventPacket.words())
+      parser2.parse(midi: self, uniqueId: uniqueId, words: eventPacket.words())
     }
   }
 
@@ -324,11 +360,6 @@ private extension MIDI {
   }
 
   func disconnectSource(uniqueId: MIDIUniqueID) -> MIDIEndpointRef? {
-    guard activeConnections.contains(uniqueId) else {
-      os_log(.debug, log: log, "not connected to %d", uniqueId)
-      return nil
-    }
-
     activeConnections.remove(uniqueId)
     groups.removeValue(forKey: uniqueId)
     channels.removeValue(forKey: uniqueId)

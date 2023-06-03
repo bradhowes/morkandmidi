@@ -51,8 +51,8 @@ class MonitorTests: MIDITestCase {
   }
 
   func testShouldConnectTo() {
-    self.createSource1()
-    self.createSource2()
+    createSource1()
+    createSource2()
 
     midi.stop()
     createMIDIWithoutStarting()
@@ -67,6 +67,33 @@ class MonitorTests: MIDITestCase {
     XCTAssertFalse(midi.activeConnections.contains(uniqueId + 2))
   }
 
+  func testSourceConnections() {
+    createSource1()
+    createSource2()
+
+    midi.stop()
+    createMIDIWithoutStarting()
+
+    doAndWaitFor(expected: .didConnectTo) {
+      midi.start()
+    }
+
+    for each in midi.sourceConnections {
+      print(each.uniqueId, each.displayName, each.connected, each.channel ?? -1, each.group ?? -1)
+    }
+
+    doAndWaitFor(expected: .didUpdateConnections) {
+      MIDIEndpointDispose(source1)
+      source1 = .init()
+      MIDIEndpointDispose(source2)
+      source2 = .init()
+    }
+
+    for each in midi.sourceConnections {
+      print(each.uniqueId, each.displayName, each.connected, each.channel ?? -1, each.group ?? -1)
+    }
+  }
+
   func testDidUpdateConnections() {
     createSource1()
     doAndWaitFor(expected: .didUpdateConnections) {
@@ -75,7 +102,7 @@ class MonitorTests: MIDITestCase {
     }
   }
 
-  func testSending() {
+  func testReceiving() {
     createSource1()
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
 
@@ -87,6 +114,24 @@ class MonitorTests: MIDITestCase {
     XCTAssertTrue(midi.channels.isEmpty)
     _ = packetBuilder.withUnsafePointer {
       MIDIReceivedEventList(source1, $0)
+    }
+
+    checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
+  }
+
+  func testReceivingLegacy() {
+    createMIDIWithoutStarting(legacy: true)
+    midi.start()
+    createSource1()
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
+
+    let packetBuilder = MIDIPacketList.Builder(byteSize: MemoryLayout<MIDIPacketList>.size / MemoryLayout<UInt8>.stride)
+    packetBuilder.append(timestamp: mach_absolute_time(), data: [UInt8(0x81), UInt8(0x64), UInt8(0x65)])
+    packetBuilder.append(timestamp: mach_absolute_time(), data: [UInt8(0x91), UInt8(0x64), UInt8(0x65)])
+
+    XCTAssertTrue(midi.channels.isEmpty)
+    _ = packetBuilder.withUnsafePointer {
+      MIDIReceived(source1, $0)
     }
 
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }

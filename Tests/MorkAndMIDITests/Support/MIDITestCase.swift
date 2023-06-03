@@ -21,7 +21,7 @@ class MIDITestCase: XCTestCase {
     client = .init()
     source1 = .init()
     source2 = .init()
-    createMIDIWithoutStarting()
+    createMIDIWithoutStarting(legacy: false)
     doAndWaitFor(expected: .didUpdateConnections) { _, _ in
       self.midi.start()
     }
@@ -36,8 +36,12 @@ class MIDITestCase: XCTestCase {
     source2 = .init()
   }
 
-  func createMIDIWithoutStarting() {
-    midi = MIDI(clientName: "MIDITestCase", uniqueId: uniqueId)
+  func createMIDIWithoutStarting(legacy: Bool = false) {
+    if legacy {
+      midi = MIDI(clientName: "MIDITestCase", uniqueId: uniqueId, legacyAPI: true)
+    } else {
+      midi = MIDI(clientName: "MIDITestCase", uniqueId: uniqueId)
+    }
   }
 
   func createClient() {
