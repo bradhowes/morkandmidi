@@ -4,7 +4,7 @@ import CoreMIDI
 import os.log
 
 /**
- Parser of Universal MIDI Packet
+ Parser of Universal MIDI Packet (v2 of MIDI spec)
  */
 public struct MIDI2Parser {
   private var log: OSLog { Logging.logger("MIDI2Parser") }

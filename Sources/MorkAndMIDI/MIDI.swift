@@ -105,6 +105,7 @@ public final class MIDI: NSObject {
 
    - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
    - parameter uniqueId: the unique ID to use for the input port of the client
+   - parameter legacyAPI: (ignored) this is here in order to not break existing constructor below.
    */
   public init(clientName: String, uniqueId: MIDIUniqueID, legacyAPI: Bool) {
     self.midi2Capable = false

@@ -3,8 +3,7 @@
 import CoreMIDI
 import os.log
 
-/// Legacy parser for MIDI 1.0 messages. This is not currently used as MIDI 2.0 Universal MIDI Packet (UMP) messages
-/// can handle MIDI 1.0 layout.
+/// Legacy parser for MIDI 1.0 messages.
 internal class MIDI1Parser {
   private var log: OSLog { Logging.logger("MIDI1Parser") }
 
