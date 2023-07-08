@@ -1,6 +1,6 @@
 // Copyright © 2023 Brad Howes. All rights reserved.
 
-internal extension UInt8 {
+public extension UInt8 {
 
   /// Treat the upper 4 bits as an unsigned 8-bit integer value
   var highNibble: UInt8 { self >> 4}

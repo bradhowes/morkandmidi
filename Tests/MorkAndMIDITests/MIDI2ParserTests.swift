@@ -16,7 +16,7 @@ class MIDI2ParserTests: MIDITestCase {
     midi.receiver = receiver
     packetBuilder = MIDIEventPacket.Builder(maximumNumberMIDIWords: 64)
     packetBuilder.timeStamp = 0
-    parser = MIDI2Parser()
+    parser = .init(midi: midi)
   }
 
   override func tearDown() {
@@ -100,7 +100,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x51_23_45_67), UInt32(0x00), UInt32(0x00), UInt32(0x00))
     packetBuilder.append(UInt32(0x61_81_01_02))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(receiver.received.count, 1)
   }
@@ -114,7 +114,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x21_D6_0B_0C))
     packetBuilder.append(UInt32(0x21_E7_0D_0E))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(7, receiver.received.count)
     XCTAssertEqual(receiver.received[0], "noteOff 1 2")
@@ -131,7 +131,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x21_81_01_02))
     packetBuilder.append(UInt32(0x11_92_01_02))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(1, receiver.received.count)
     XCTAssertEqual(receiver.received[0], "noteOff 1 2")
@@ -142,7 +142,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x21_81_01_02))
     packetBuilder.append(UInt32(0x21_92_01_02))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(1, receiver.received.count)
     XCTAssertEqual(receiver.received[0], "noteOff 1 2")
@@ -162,7 +162,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x10_FF_13_14))
 
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(10, receiver.received.count)
     XCTAssertEqual(receiver.received[0], "timeCodeQuarterFrame 1")
@@ -195,7 +195,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x41_58_0D_0E), UInt32(0xFF_12_34_07))
 
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(14, receiver.received.count)
     XCTAssertEqual(receiver.received[0], "noteOff2 1 4660 2 22136")
@@ -221,7 +221,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x41_F0_13_34), UInt32(0x56_78_9A_BC))
     packetBuilder.append(UInt32(0x41_F0_14_35), UInt32(0x56_78_9A_BC))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertEqual(receiver.received[0], "perNoteManagement 17 true false")
     XCTAssertEqual(receiver.received[1], "perNoteManagement 18 true true")
@@ -236,7 +236,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x41_F0_13_34), UInt32(0x56_78_9A_BC))
     packetBuilder.append(UInt32(0x41_F0_14_35), UInt32(0x56_78_9A_BC))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertTrue(receiver.received.isEmpty)
   }
@@ -244,7 +244,7 @@ class MIDI2ParserTests: MIDITestCase {
   func testParserIgnoresUnknownUniversalMessageType() {
     packetBuilder.append(UInt32(0xF1_F0_11_32), UInt32(0x56_78_9A_BC))
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
     XCTAssertTrue(receiver.received.isEmpty)
   }
@@ -300,7 +300,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.append(UInt32(0x41_F0_14_35), UInt32(0x56_78_9A_BC))
     
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: 456, words: pointer.words())
+      parser.parse(source: 456, words: pointer.words())
     }
   }
 }

@@ -15,7 +15,7 @@ class MIDI1ParserTests: MIDITestCase {
     super.setUp()
     receiver = TestReceiver()
     midi.receiver = receiver
-    parser = MIDI1Parser()
+    parser = .init(midi: midi)
     packetBuilder = .init(maximumNumberMIDIBytes: 64)
     packetBuilder.timeStamp = 0
   }
@@ -45,7 +45,7 @@ class MIDI1ParserTests: MIDITestCase {
       }
     }
     packetBuilder.withUnsafePointer { pointer in
-      parser.parse(midi: midi, uniqueId: sourceUniqueId, bytes: pointer.bytes())
+      parser.parse(source: sourceUniqueId, bytes: pointer.bytes())
     }
   }
 

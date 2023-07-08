@@ -3,7 +3,7 @@
 import CoreMIDI
 import os
 
-internal extension MIDIObjectRef {
+extension MIDIObjectRef {
 
   private var log: OSLog { Logging.logger("MIDIObjectRef") }
 
@@ -33,7 +33,7 @@ internal extension MIDIObjectRef {
   }
 }
 
-internal extension MIDIObjectRef {
+public extension MIDIObjectRef {
   /// Obtain the product name for a MIDI object.
   var name: String {
     get { get(kMIDIPropertyName) }
@@ -50,9 +50,8 @@ internal extension MIDIObjectRef {
     set { set(kMIDIPropertyModel, to: newValue)}
   }
   /// Obtain the display name for a MIDI object. This is
-  var displayName: String {
-    get { get(kMIDIPropertyDisplayName) }
-  }
+  var displayName: String { return get(kMIDIPropertyDisplayName) }
+
   /// Obtain the unique ID for a MIDI object
   var uniqueId: MIDIUniqueID {
     get { get(kMIDIPropertyUniqueID) }

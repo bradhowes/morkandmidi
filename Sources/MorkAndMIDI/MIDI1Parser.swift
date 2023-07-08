@@ -7,13 +7,20 @@ import os.log
 internal class MIDI1Parser {
   private var log: OSLog { Logging.logger("MIDI1Parser") }
 
+  private let noReceiver: Int  = -2
+  private let allChannels: Int  = -1
+  private let midi: MIDI
+
+  init(midi: MIDI) {
+    self.midi = midi
+  }
+
   /**
    Extract MIDI messages from the packets and process them
 
-   - parameter midi: controller of MIDI processing
-   - parameter uniqueId: the unique ID of the MIDI endpoint that sent the messages
+   - parameter source: the unique ID of the MIDI endpoint that sent the messages
    */
-  func parse(midi: MIDI, uniqueId: MIDIUniqueID, bytes: MIDIPacket.ByteCollection) {
+  func parse(source: MIDIUniqueID, bytes: MIDIPacket.ByteCollection) {
     let byteCount = bytes.count
 
     // Uff. In testing with Arturia Minilab mk II, I can sometimes generate packets with zero or really big
@@ -24,11 +31,13 @@ internal class MIDI1Parser {
     }
 
     os_log(.debug, log: log, "packet - %d bytes", byteCount)
+    processBytes(source: source, bytes: bytes)
+  }
+}
 
-    let receiverChannel = midi.receiver?.channel ?? -2
+private extension MIDI1Parser {
 
-    // Visit the individual bytes until all consumed. If there is something we don't understand, we stop processing the
-    // packet.
+  func processBytes(source: MIDIUniqueID, bytes: MIDIPacket.ByteCollection) {
     var index = bytes.startIndex
     while index < bytes.endIndex {
       let status = bytes[index]
@@ -38,51 +47,55 @@ internal class MIDI1Parser {
       guard let command = MsgKind(status) else { return }
 
       let needed = command.byteCount
-
-      if command.hasChannel {
-        let packetChannel = Int(status & 0x0F)
-
-        // We have enough information to update the channel that an endpoint is sending on
-        midi.updateEndpointInfo(uniqueId: uniqueId, group: -1, channel: packetChannel)
-
-        os_log(.debug, log: log, "message: %d packetChannel: %d", command.rawValue, packetChannel)
-
-        if receiverChannel != -1 && receiverChannel != packetChannel {
-          index += needed
-          continue
-        }
+      if acceptsCommand(source: source, status: status, command: command),
+         let receiver = midi.receiver,
+         index + needed <= bytes.endIndex {
+        dispatch(source: source, command: command, receiver: receiver, bytes: bytes, index: index)
       }
-
-      // Filter out messages if they come on a channel we are not listening, or we do not have enough bytes to continue
-      guard let receiver = midi.receiver, index + needed <= bytes.endIndex else {
-        index += needed
-        continue
-      }
-
-      switch command {
-      case .noteOff: receiver.noteOff(source: uniqueId, note: bytes[index], velocity: bytes[index + 1])
-      case .noteOn: receiver.noteOn(source: uniqueId, note: bytes[index], velocity: bytes[index + 1])
-      case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: uniqueId, note: bytes[index], pressure: bytes[index + 1])
-      case .controlChange: receiver.controlChange(source: uniqueId, controller: bytes[index], value: bytes[index + 1])
-      case .programChange: receiver.programChange(source: uniqueId, program: bytes[index])
-      case .channelPressure: receiver.channelPressure(source: uniqueId, pressure: bytes[index])
-      case .pitchBendChange: receiver.pitchBendChange(source: uniqueId, value: UInt16(bytes[index + 1]) << 7 + UInt16(bytes[index]))
-      case .systemExclusive: break
-      case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(source: uniqueId, value: bytes[index])
-      case .songPositionPointer: receiver.songPositionPointer(source: uniqueId, value: UInt16(bytes[index + 1]) << 7 + UInt16(bytes[index]))
-      case .songSelect: receiver.songSelect(source: uniqueId, value: bytes[index])
-      case .tuneRequest: receiver.tuneRequest(source: uniqueId)
-      case .timingClock: receiver.timingClock(source: uniqueId)
-      case .startCurrentSequence: receiver.startCurrentSequence(source: uniqueId)
-      case .continueCurrentSequence: receiver.continueCurrentSequence(source: uniqueId)
-      case .stopCurrentSequence: receiver.stopCurrentSequence(source: uniqueId)
-      case .activeSensing: receiver.activeSensing(source: uniqueId)
-      case .reset: receiver.systemReset(source: uniqueId)
-      }
-
       index += needed
     }
   }
+
+  func acceptsCommand(source: MIDIUniqueID, status: UInt8, command: MIDI1Parser.MsgKind) -> Bool {
+    guard command.hasChannel else { return true }
+    let receiverChannel = midi.receiver?.channel ?? noReceiver
+    let packetChannel = Int(status & 0x0F)
+    midi.updateEndpointInfo(uniqueId: source, group: -1, channel: packetChannel)
+    os_log(.debug, log: log, "message: %d packetChannel: %d", command.rawValue, packetChannel)
+    return receiverChannel == allChannels || receiverChannel == packetChannel
+  }
+
+  // swiftlint:disable cyclomatic_complexity
+
+  func dispatch(source: MIDIUniqueID, command: MIDI1Parser.MsgKind, receiver: Receiver,
+                bytes: MIDIPacket.ByteCollection, index: Int) {
+    func byte0() -> UInt8 { bytes[index] }
+    func byte1() -> UInt8 { bytes[index + 1] }
+    func word() -> UInt16 { UInt16(byte1()) << 7 + UInt16(byte0()) }
+
+    switch command {
+    case .noteOff: receiver.noteOff(source: source, note: byte0(), velocity: byte1())
+    case .noteOn: receiver.noteOn(source: source, note: byte0(), velocity: byte1())
+    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: source, note: byte0(), pressure: byte1())
+    case .controlChange: receiver.controlChange(source: source, controller: byte0(), value: byte1())
+    case .programChange: receiver.programChange(source: source, program: byte0())
+    case .channelPressure: receiver.channelPressure(source: source, pressure: byte0())
+    case .pitchBendChange: receiver.pitchBendChange(source: source, value: word())
+    case .systemExclusive: break // NOTE: we should never see this since the bytes needed should be too high
+    case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(source: source, value: byte0())
+    case .songPositionPointer: receiver.songPositionPointer(source: source, value: word())
+    case .songSelect: receiver.songSelect(source: source, value: byte0())
+    case .tuneRequest: receiver.tuneRequest(source: source)
+    case .timingClock: receiver.timingClock(source: source)
+    case .startCurrentSequence: receiver.startCurrentSequence(source: source)
+    case .continueCurrentSequence: receiver.continueCurrentSequence(source: source)
+    case .stopCurrentSequence: receiver.stopCurrentSequence(source: source)
+    case .activeSensing: receiver.activeSensing(source: source)
+    case .reset: receiver.systemReset(source: source)
+    }
+  }
+
+  // swiftlint:enable cyclomatic_complexity
 
   /// MIDI commands (v1)
   enum MsgKind: UInt8 {
@@ -130,7 +143,7 @@ internal class MIDI1Parser {
       case .programChange: return 1
       case .channelPressure: return 1
       case .pitchBendChange: return 2
-      case .systemExclusive: return 63
+      case .systemExclusive: return 1_000_000
       case .timeCodeQuarterFrame: return 1
       case .songPositionPointer: return 2
       case .songSelect: return 1

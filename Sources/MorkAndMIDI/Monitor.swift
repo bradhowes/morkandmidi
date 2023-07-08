@@ -83,27 +83,16 @@ public protocol MonitorWithDefaults: Monitor {}
 
 /// Default implementations of the Monitor protocol
 public extension MonitorWithDefaults {
-  
   func didInitialize() {}
-  
   func willUninitialize() {}
-  
   func didCreate(inputPort: MIDIPortRef) {}
-  
   func willDelete(inputPort: MIDIPortRef) {}
-
   func didStart() {}
-
   func didStop() {}
-  
   func shouldConnect(to uniqueId: MIDIUniqueID) -> Bool { true }
-  
   func didConnect(to uniqueId: MIDIUniqueID) {}
-  
   func willUpdateConnections() {}
-  
   func didUpdateConnections(connected: any Sequence<MIDIEndpointRef>, disappeared: any Sequence<MIDIUniqueID>) {}
-
   func didSee(uniqueId: MIDIUniqueID, group: Int, channel: Int) {}
 }
 

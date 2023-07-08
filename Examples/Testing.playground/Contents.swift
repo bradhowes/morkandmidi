@@ -17,7 +17,7 @@ func unboxRefCon(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
 
 let midi = MorkAndMIDI.MIDI(clientName: "Testing", uniqueId: 12345)
 
-class Monitor: MorkAndMIDI.Monitor {
+class Monitor: MorkAndMIDI.MonitorWithDefaults {
   func didInitialize(uniqueId: MIDIUniqueID) { print("monitor initialized -", uniqueId) }
 
   func willUpdateConnections() {
@@ -71,7 +71,7 @@ err = MIDIInputPortCreateWithProtocol(client, inputPortName as CFString, ._2_0, 
   print("inputPort message from", uniqueId)
   eventList.unsafeSequence().forEach { eventPacket in
     for word in eventPacket.words() {
-      print(word.b0.hex, word.b1.hex, word.b2.hex, word.b3.hex)
+      print(word.byte0.hex, word.byte1.hex, word.byte2.hex, word.byte3.hex)
     }
   }
 }

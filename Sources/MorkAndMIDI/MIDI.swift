@@ -9,26 +9,21 @@ import CoreMIDI
  */
 public final class MIDI: NSObject {
   private let log: OSLog = Logging.logger("MIDI")
-
   public let midi2Capable: Bool
-
   /// The MIDI protocol we are expecting.
   public let midiProtocol: MIDIProtocolID
-
   /// Collection of endpoint unique IDs and the last channel ID found in a MIDI message from that endpoint
   @objc dynamic
   public private(set) var channels = [MIDIUniqueID: Int]()
-
+  /// MIDI v2 groups that have been seen
   @objc dynamic
   public private(set) var groups = [MIDIUniqueID: Int]()
-
   /// Collection of connection IDs that are connected to our input port.
   @objc dynamic
   public private(set) var activeConnections = Set<MIDIUniqueID>()
-
   /// Returns `true` when the MIDI service is running and accepting messages
   public var isRunning: Bool { inputPort != MIDIPortRef() }
-
+  /// The model identifier assigned to the input port
   public var model: String = "" {
     didSet {
       if inputPort != MIDIPortRef() {
@@ -36,7 +31,7 @@ public final class MIDI: NSObject {
       }
     }
   }
-
+  /// The manufacturer identifier assigned to the input port
   public var manufacturer: String = "" {
     didSet {
       if inputPort != MIDIPortRef() {
@@ -44,7 +39,7 @@ public final class MIDI: NSObject {
       }
     }
   }
-
+  /// Configure if network connections are allowed
   public var enableNetworkConnections: Bool = true {
     didSet {
       configureNetworkConnections()
@@ -58,8 +53,8 @@ public final class MIDI: NSObject {
   internal var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
 
   private lazy var inputPortName = clientName + " In"
-  private let parser1: MIDI1Parser = .init()
-  private let parser2: MIDI2Parser = .init()
+  private lazy var parser1: MIDI1Parser = .init(midi: self)
+  private lazy var parser2: MIDI2Parser = .init(midi: self)
 
   /**
    Current state of a MIDI connection to the inputPort
@@ -96,8 +91,12 @@ public final class MIDI: NSObject {
 
   /// Delegate which will receive notification about MIDI connectivity
   public weak var monitor: Monitor?
-
-  private var eventQueue: DispatchQueue
+  private lazy var eventQueue: DispatchQueue = {
+    let name = clientName.isEmpty ? UUID().uuidString : clientName.onlyAlphaNumerics
+    let eventQueueName = "\(Bundle.main.bundleIdentifier ?? "com.braysoft.MorkAndMIDI").midi.\(name).events"
+    return DispatchQueue(label: eventQueueName, qos: .userInitiated, attributes: [], autoreleaseFrequency: .workItem,
+                         target: .global(qos: .userInitiated))
+  }()
 
   /**
    Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic.
@@ -112,7 +111,6 @@ public final class MIDI: NSObject {
     self.midiProtocol = ._1_0
     self.clientName = clientName
     self.ourUniqueId = uniqueId
-    self.eventQueue = Self.makeQueue(clientName: clientName)
     super.init()
   }
 
@@ -130,7 +128,6 @@ public final class MIDI: NSObject {
     self.midiProtocol = midiProtocol
     self.clientName = clientName
     self.ourUniqueId = uniqueId
-    self.eventQueue = Self.makeQueue(clientName: clientName)
     super.init()
   }
 
@@ -212,7 +209,7 @@ public extension MIDI {
   func connect(to uniqueId: MIDIUniqueID) -> Bool {
     guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else { return false }
     return eventQueue.sync {
-      guard let _ = self.connectSource(endpoint: endpoint) else { return false }
+      guard self.connectSource(endpoint: endpoint) != nil else { return false }
       self.activeConnections.insert(uniqueId)
       return true
     }
@@ -225,7 +222,7 @@ public extension MIDI {
    - returns: true if disconnected
    */
   func disconnect(from uniqueId: MIDIUniqueID) {
-    guard let _ = KnownSources.matching(uniqueId: uniqueId) else { return }
+    guard KnownSources.matching(uniqueId: uniqueId) != nil else { return }
     eventQueue.sync {
       _ = self.disconnectSource(uniqueId: uniqueId)
       self.activeConnections.remove(uniqueId)
@@ -272,9 +269,7 @@ internal extension MIDI {
 
   func createInputPort() -> Bool {
     guard inputPort == MIDIEndpointRef() else { return false }
-
     let inputPortName = inputPortName as CFString
-
     let result: OSStatus
 
     if midi2Capable {
@@ -282,14 +277,14 @@ internal extension MIDI {
                                                &inputPort) { [weak self] eventListPointer, refCon in
         guard let self = self else { return }
         self.eventQueue.async {
-          self.processEventList(eventList: eventListPointer, uniqueId: unboxRefCon(refCon))
+          self.processEventList(eventList: eventListPointer, uniqueId: .unbox(refCon))
         }
       }
     } else {
       result = MIDIInputPortCreateWithBlock(client, inputPortName,
                                             &inputPort) { [weak self] packetListPointer, refCon in
         guard let self = self else { return }
-        self.processPacketList(packetList: packetListPointer, uniqueId: unboxRefCon(refCon))
+        self.processPacketList(packetList: packetListPointer, uniqueId: .unbox(refCon))
       }
     }
 
@@ -301,30 +296,26 @@ private extension MIDI {
 
   func processPacketList(packetList: UnsafePointer<MIDIPacketList>, uniqueId: MIDIUniqueID) {
     for packet in packetList.unsafeSequence() {
-      parser1.parse(midi: self, uniqueId: uniqueId, bytes: MIDIPacket.ByteCollection(packet))
+      parser1.parse(source: uniqueId, bytes: MIDIPacket.ByteCollection(packet))
     }
   }
 
   func processEventList(eventList: UnsafePointer<MIDIEventList>, uniqueId: MIDIUniqueID) {
     eventList.unsafeSequence().forEach { eventPacket in
-      parser2.parse(midi: self, uniqueId: uniqueId, words: eventPacket.words())
+      parser2.parse(source: uniqueId, words: eventPacket.words())
     }
   }
 
   func updateConnections() {
     os_log(.info, log: log, "updateConnections")
-
     monitor?.willUpdateConnections()
 
-    // Connect to newly available sources
     let active = KnownSources.all.filter { $0.uniqueId != ourUniqueId }
     let added = active.compactMap { connectSource(endpoint: $0) }
 
-    // Disconnect from sources that have gone away
     let disappeared = activeConnections.subtracting(active.uniqueIds)
     let removed = disappeared.compactMap { disconnectSource(uniqueId: $0) }
 
-    // Update the set uniqueIds for active connections
     activeConnections.formUnion(added.map { $0.uniqueId })
     activeConnections.subtract(removed.map { $0.uniqueId })
 
@@ -347,7 +338,7 @@ private extension MIDI {
       return nil
     }
 
-    let refCon = boxUniqueId(uniqueId)
+    let refCon = uniqueId.boxed
     refCons[uniqueId] = refCon
 
     os_log(.info, log: log, "connecting endpoint %d '%{public}s' %d %ld", uniqueId, name, endpoint, refCon)
@@ -402,39 +393,5 @@ private extension MIDI {
     os_log(.debug, log: log, "net session networkPort: %d", mns.networkPort)
     os_log(.debug, log: log, "net session networkName: %{public}s", mns.networkName)
     os_log(.debug, log: log, "net session localName: %{public}s", mns.localName)
-  }
-
-  private static func makeQueue(clientName: String) -> DispatchQueue {
-    var clientName = clientName.onlyAlphaNumerics
-    if clientName.isEmpty { clientName = UUID().uuidString }
-
-    let eventQueueName = "\(Bundle.main.bundleIdentifier ?? "com.braysoft.MorkAndMIDI").midi.\(clientName).events"
-    return DispatchQueue(
-      label: eventQueueName,
-      qos: .userInitiated,
-      attributes: [],
-      autoreleaseFrequency: .workItem,
-      target: .global(qos: .userInitiated)
-    )
-  }
-}
-
-private func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
-  let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
-  refCon.initialize(to: uniqueId)
-  return refCon
-}
-
-private func unboxRefCon(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
-  guard let uniqueId = refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee else { fatalError() }
-  return uniqueId
-}
-
-extension StringProtocol {
-  var onlyAlphaNumerics: String {
-    unicodeScalars
-      .filter { CharacterSet.alphanumerics.contains($0) }
-      .map { "\($0)" }
-      .joined()
   }
 }
