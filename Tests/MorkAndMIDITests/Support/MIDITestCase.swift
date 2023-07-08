@@ -12,6 +12,8 @@ class MIDITestCase: XCTestCase {
   var client: MIDIClientRef = .init()
   var source1: MIDIEndpointRef = .init()
   var source2: MIDIEndpointRef = .init()
+  var receiver: TestReceiver!
+  var monitor: TestMonitor!
 
   typealias BlockNoReturn = () -> Void
   typealias BlockWithMonitorNoReturn = (TestMonitor) -> Void
@@ -21,7 +23,9 @@ class MIDITestCase: XCTestCase {
     client = .init()
     source1 = .init()
     source2 = .init()
-    createMIDIWithoutStarting(legacy: false)
+    receiver = TestReceiver()
+    monitor = TestMonitor()
+    createMIDIWithoutStarting()
     doAndWaitFor(expected: .didUpdateConnections) { _, _ in
       self.midi.start()
     }
@@ -29,19 +33,34 @@ class MIDITestCase: XCTestCase {
 
   override func tearDown() {
     if client != .init() { MIDIClientDispose(client) }
-    if midi != nil { midi.stop() }
+    if midi != nil {
+      midi.stop()
+      midi.monitor = nil
+      midi.receiver = nil
+    }
     midi = nil
+    monitor = nil
+    receiver = nil
     client = .init()
     source1 = .init()
     source2 = .init()
   }
 
-  func createMIDIWithoutStarting(legacy: Bool = false) {
-    if legacy {
-      midi = MIDI(clientName: "MIDITestCase", uniqueId: uniqueId, legacyAPI: true)
-    } else {
-      midi = MIDI(clientName: "MIDITestCase", uniqueId: uniqueId)
+  func createMIDIWithoutStarting(clientName: String = "MIDITestCase'", legacy: Bool = false,
+                                 midiProtocol: MIDIProtocolID = ._2_0 ) {
+    if midi != nil {
+      midi.stop()
+      midi = nil
     }
+
+    if legacy {
+      midi = MIDI(clientName: clientName, uniqueId: uniqueId, legacyAPI: true)
+    } else {
+      midi = MIDI(clientName: clientName, uniqueId: uniqueId, midiProtocol: midiProtocol)
+    }
+
+    midi.monitor = monitor
+    midi.receiver = receiver
   }
 
   func createClient() {

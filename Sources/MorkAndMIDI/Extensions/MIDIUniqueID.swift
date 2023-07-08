@@ -11,8 +11,7 @@ internal extension MIDIUniqueID {
     return refCon
   }
 
-  static func unbox(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID {
-    guard let uniqueId = refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee else { fatalError() }
-    return uniqueId
+  static func unbox(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID? {
+    refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee
   }
 }

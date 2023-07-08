@@ -6,22 +6,23 @@ import XCTest
 
 class MIDI2ParserTests: MIDITestCase {
 
-  var receiver: TestReceiver!
-  var packetBuilder: MIDIEventPacket.Builder!
   var parser: MIDI2Parser!
+  var packetBuilder: MIDIEventPacket.Builder!
+  let sourceUniqueId: MIDIUniqueID = 10101
 
   override func setUp() {
     super.setUp()
     receiver = .init()
     midi.receiver = receiver
+    parser = .init(midi: midi)
     packetBuilder = MIDIEventPacket.Builder(maximumNumberMIDIWords: 64)
     packetBuilder.timeStamp = 0
-    parser = .init(midi: midi)
   }
 
   override func tearDown() {
-    super.tearDown()
+    midi.receiver = nil
     receiver = nil
+    super.tearDown()
   }
 
   func testUniversalMessageType() {
@@ -197,6 +198,7 @@ class MIDI2ParserTests: MIDITestCase {
     packetBuilder.withUnsafePointer { pointer in
       parser.parse(source: 456, words: pointer.words())
     }
+
     XCTAssertEqual(14, receiver.received.count)
     XCTAssertEqual(receiver.received[0], "noteOff2 1 4660 2 22136")
     XCTAssertEqual(receiver.received[1], "noteOn2 3 9029 4 26505")

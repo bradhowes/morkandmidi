@@ -15,6 +15,11 @@ class MIDITests: MIDITestCase {
     super.tearDown()
   }
 
+  func testWithEmptyName() {
+    midi = MIDI(clientName: "", uniqueId: uniqueId, legacyAPI: true)
+    XCTAssertTrue(midi.clientName.count == 0)
+  }
+  
   func testPreStartInitialState() {
     createMIDIWithoutStarting()
     XCTAssertTrue(midi.channels.isEmpty)

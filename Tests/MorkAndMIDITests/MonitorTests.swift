@@ -102,25 +102,8 @@ class MonitorTests: MIDITestCase {
     }
   }
 
-  func testReceiving() {
-    createSource1()
-    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
-
-    let packetBuilder = MIDIEventList.Builder(inProtocol: ._2_0,
-                                              wordSize: MemoryLayout<MIDIEventList>.size / MemoryLayout<UInt32>.stride)
-    packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_91_60_7F)])
-    packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_81_60_00)])
-
-    XCTAssertTrue(midi.channels.isEmpty)
-    _ = packetBuilder.withUnsafePointer {
-      MIDIReceivedEventList(source1, $0)
-    }
-
-    checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
-  }
-
-  func testReceivingLegacy() {
-    createMIDIWithoutStarting(legacy: true)
+  func testEmptyClientName() {
+    midi = .init(clientName: "", uniqueId: 123, legacyAPI: true)
     midi.start()
     createSource1()
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }

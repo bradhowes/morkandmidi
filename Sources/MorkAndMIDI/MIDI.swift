@@ -108,7 +108,7 @@ public final class MIDI: NSObject {
    */
   public init(clientName: String, uniqueId: MIDIUniqueID, legacyAPI: Bool) {
     self.midi2Capable = false
-    self.midiProtocol = ._1_0
+    self.midiProtocol = ._1_0 // not used when midi2Capable is false
     self.clientName = clientName
     self.ourUniqueId = uniqueId
     super.init()
@@ -273,18 +273,18 @@ internal extension MIDI {
     let result: OSStatus
 
     if midi2Capable {
+      os_log(.debug, log: self.log, "creating input port with protocol %d (event lists)", midiProtocol.rawValue)
       result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol,
                                                &inputPort) { [weak self] eventListPointer, refCon in
-        guard let self = self else { return }
-        self.eventQueue.async {
-          self.processEventList(eventList: eventListPointer, uniqueId: .unbox(refCon))
-        }
+        guard let self = self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
+        self.processEventList(eventList: eventListPointer, uniqueId: uniqueId)
       }
     } else {
+      os_log(.debug, log: self.log, "creating legacy input port (packet lists)")
       result = MIDIInputPortCreateWithBlock(client, inputPortName,
                                             &inputPort) { [weak self] packetListPointer, refCon in
-        guard let self = self else { return }
-        self.processPacketList(packetList: packetListPointer, uniqueId: .unbox(refCon))
+        guard let self = self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
+        self.processPacketList(packetList: packetListPointer, uniqueId: uniqueId)
       }
     }
 

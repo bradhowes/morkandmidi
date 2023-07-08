@@ -7,16 +7,13 @@ import XCTest
 class MIDI1ParserTests: MIDITestCase {
 
   var parser: MIDI1Parser!
-  var receiver: TestReceiver!
   var packetBuilder: MIDIPacket.Builder!
   let sourceUniqueId: MIDIUniqueID = 10101
 
   override func setUp() {
     super.setUp()
-    receiver = TestReceiver()
-    midi.receiver = receiver
     parser = .init(midi: midi)
-    packetBuilder = .init(maximumNumberMIDIBytes: 64)
+    packetBuilder = .init(maximumNumberMIDIBytes: 1024)
     packetBuilder.timeStamp = 0
   }
 
@@ -34,14 +31,15 @@ class MIDI1ParserTests: MIDITestCase {
       case 1:
         packetBuilder.append(bytes[index])
         index += 1
-
       case 2:
         packetBuilder.append(bytes[index], bytes[index + 1])
         index += 2
-
-      default:
+      case 3:
         packetBuilder.append(bytes[index], bytes[index + 1], bytes[index + 2])
         index += 3
+      default:
+        packetBuilder.append(bytes[index], bytes[index + 1], bytes[index + 2], bytes[index + 3])
+        index += 4
       }
     }
     packetBuilder.withUnsafePointer { pointer in
@@ -85,9 +83,19 @@ class MIDI1ParserTests: MIDITestCase {
   }
 
   func testParserIgnoresSysEx() {
-    let zeros = Array<UInt8>.init(repeating: 0, count: 63)
-    let sysex = [0xF0] + zeros
-    sendMessage(bytes: sysex, channel: -1)
+    var zeros = Array<UInt8>.init(repeating: 0, count: 64)
+    zeros[0] = 0xF0
+    sendMessage(bytes: zeros, channel: -1)
+    XCTAssertTrue(receiver.received.isEmpty)
+  }
+
+  func testParserIgnoresMessagesAfterSysEx() {
+    var zeros = Array<UInt8>.init(repeating: 0, count: 64 + 3)
+    zeros[0] = 0xF0 // SYSEX
+    zeros[64] = 0x91 // NOTE ON
+    zeros[65] = 0x64
+    zeros[66] = 0x32
+    sendMessage(bytes: zeros, channel: -1)
     XCTAssertTrue(receiver.received.isEmpty)
   }
 
@@ -95,7 +103,6 @@ class MIDI1ParserTests: MIDITestCase {
     midi.receiver = nil
     sendMessage(bytes: [0x91, 64, 32, 0x81, 64, 0])
   }
-
 
   class DummyReceiver: MorkAndMIDI.ReceiverWithDefaults {}
 

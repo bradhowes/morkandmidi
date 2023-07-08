@@ -51,6 +51,12 @@ private extension MIDI1Parser {
          let receiver = midi.receiver,
          index + needed <= bytes.endIndex {
         dispatch(source: source, command: command, receiver: receiver, bytes: bytes, index: index)
+        if command == .systemExclusive {
+
+          // Special case SYSEX because ww do not parse it and so we do not know how many bytes it really needs. We
+          // just used 63 in the enum definition.
+          return
+        }
       }
       index += needed
     }
@@ -81,7 +87,7 @@ private extension MIDI1Parser {
     case .programChange: receiver.programChange(source: source, program: byte0())
     case .channelPressure: receiver.channelPressure(source: source, pressure: byte0())
     case .pitchBendChange: receiver.pitchBendChange(source: source, value: word())
-    case .systemExclusive: break // NOTE: we should never see this since the bytes needed should be too high
+    case .systemExclusive: break
     case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(source: source, value: byte0())
     case .songPositionPointer: receiver.songPositionPointer(source: source, value: word())
     case .songSelect: receiver.songSelect(source: source, value: byte0())
@@ -132,8 +138,7 @@ private extension MIDI1Parser {
     /// True if MIDI message has channel
     var hasChannel: Bool { self.rawValue < 0xF0 }
 
-    /// Number of additional bytes needed by a MIDI command. For systemExclusive, set to very large value in order to
-    /// stop parsing of the MIDIPacket since we don't support systemExclusive messages.
+    /// Number of additional bytes needed by a MIDI command. For now, we ignore system exclusive messages
     var byteCount: Int {
       switch self {
       case .noteOff: return 2
@@ -143,7 +148,7 @@ private extension MIDI1Parser {
       case .programChange: return 1
       case .channelPressure: return 1
       case .pitchBendChange: return 2
-      case .systemExclusive: return 1_000_000
+      case .systemExclusive: return 63 // NOTE: cannot build a MIDIPacket larger than this.
       case .timeCodeQuarterFrame: return 1
       case .songPositionPointer: return 2
       case .songSelect: return 1

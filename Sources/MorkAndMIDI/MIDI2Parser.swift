@@ -113,10 +113,7 @@ public extension MIDI2Parser {
       }
 
       switch messageType {
-      case .utility:
-        // This contains NOOP and jitter reduction messages -- ignored
-        os_log(.debug, log: log, "skipping utility messages")
-
+      case .utility: os_log(.debug, log: log, "skipping utility messages")
       case .systemCommonAndRealTime:
         if let receiver = receiver {
           dispatchSystemCommandAndRealTime(receiver: receiver, source: source, data: word0)
@@ -125,16 +122,15 @@ public extension MIDI2Parser {
         if let receiver = acceptsMessage(word0) {
           dispatchMIDI1Message(receiver: receiver, source: source, data: word0)
         }
-      case .data64bit:
-        os_log(.debug, log: log, "skipping data64bit messages")
+      case .data64bit: os_log(.debug, log: log, "skipping data64bit messages")
       case .midi2ChannelVoice:
         if let receiver = acceptsMessage(word0) {
           let word1 = words[index.advanced(by: 1)]
           dispatchMIDI2Message(receiver: receiver, source: source, data1: word0, data2: word1)
         }
-      case .data128bit:
-        os_log(.debug, log: log, "skipping data128bit messages")
+      case .data128bit: os_log(.debug, log: log, "skipping data128bit messages")
       }
+
       index = index.advanced(by: messageType.wordCount)
     }
   }
@@ -146,8 +142,7 @@ private extension MIDI2Parser {
   func dispatchSystemCommandAndRealTime(receiver: Receiver, source: MIDIUniqueID, data: UInt32) {
     switch SystemCommonAndRealTimeMessage.from(word: data) {
     case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(source: source, value: data.byte2)
-    case .songPositionPointer:
-      receiver.songPositionPointer(source: source, value: toMidi1Word(value: data))
+    case .songPositionPointer: receiver.songPositionPointer(source: source, value: toMidi1Word(value: data))
     case .songSelect: receiver.songSelect(source: source, value: data.byte2)
     case .tuneRequest: receiver.tuneRequest(source: source)
     case .timingClock:  receiver.timingClock(source: source)
@@ -174,49 +169,45 @@ private extension MIDI2Parser {
   }
 
   func dispatchMIDI2Message(receiver: Receiver, source: MIDIUniqueID, data1: UInt32, data2: UInt32) {
+    func toInt32(value: UInt32) -> Int32 { .init(bitPattern: value) }
+
     switch ChannelVoiceMessage.from(word: data1) {
-    case .registeredPerNoteControllerChange:
-      receiver.registeredPerNoteControllerChange(source: source, note: data1.byte2, controller: data1.byte3,
-                                                 value: data2)
-    case .assignablePerNoteControllerChange:
-      receiver.assignablePerNoteControllerChange(source: source, note: data1.byte2, controller: data1.byte3,
-                                                 value: data2)
-    case .registeredControllerChange:
-      receiver.registeredControllerChange(source: source, controller: data1.word1, value: data2)
-    case .assignableControllerChange:
-      receiver.assignableControllerChange(source: source, controller: data1.word1, value: data2)
-    case .relativeRegisteredControllerChange:
-      receiver.relativeRegisteredControllerChange(source: source, controller: data1.word1,
-                                                  value: Int32(bitPattern: data2))
-    case .relativeAssignableControllerChange:
-      receiver.relativeAssignableControllerChange(source: source, controller: data1.word1,
-                                                  value: Int32(bitPattern: data2))
-    case .perNotePitchBendChange:
-      receiver.perNotePitchBendChange(source: source, note: data1.byte2, value: data2)
-    case .noteOff:
-      receiver.noteOff2(source: source, note: data1.byte2, velocity: data2.word0, attributeType: data1.byte3,
-                        attributeData: data2.word1)
-    case .noteOn:
-      receiver.noteOn2(source: source, note: data1.byte2, velocity: data2.word0, attributeType: data1.byte3,
-                       attributeData: data2.word1)
-    case .polyphonicKeyPressure:
-      receiver.polyphonicKeyPressure2(source: source, note: data1.byte2, pressure: data2)
-    case .controlChange:
-      receiver.controlChange2(source: source, controller: data1.byte2, value: data2)
+    case .registeredPerNoteControllerChange: receiver.registeredPerNoteControllerChange(source: source,
+                                                                                        note: data1.byte2,
+                                                                                        controller: data1.byte3,
+                                                                                        value: data2)
+    case .assignablePerNoteControllerChange: receiver.assignablePerNoteControllerChange(source: source,
+                                                                                        note: data1.byte2,
+                                                                                        controller: data1.byte3,
+                                                                                        value: data2)
+    case .registeredControllerChange: receiver.registeredControllerChange(source: source, controller: data1.word1,
+                                                                          value: data2)
+    case .assignableControllerChange: receiver.assignableControllerChange(source: source, controller: data1.word1,
+                                                                          value: data2)
+    case .relativeRegisteredControllerChange: receiver.relativeRegisteredControllerChange(source: source,
+                                                                                          controller: data1.word1,
+                                                                                          value: toInt32(value: data2))
+    case .relativeAssignableControllerChange: receiver.relativeAssignableControllerChange(source: source,
+                                                                                          controller: data1.word1,
+                                                                                          value: toInt32(value: data2))
+    case .perNotePitchBendChange: receiver.perNotePitchBendChange(source: source, note: data1.byte2, value: data2)
+    case .noteOff: receiver.noteOff2(source: source, note: data1.byte2, velocity: data2.word0, attributeType:
+                                      data1.byte3, attributeData: data2.word1)
+    case .noteOn: receiver.noteOn2(source: source, note: data1.byte2, velocity: data2.word0, attributeType: data1.byte3,
+                                   attributeData: data2.word1)
+    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure2(source: source, note: data1.byte2, pressure: data2)
+    case .controlChange: receiver.controlChange2(source: source, controller: data1.byte2, value: data2)
     case .programChange:
       if data1.byte3[0] {
         receiver.programChange2(source: source, program: data2.byte0, bank: data2.word1)
       } else {
         receiver.programChange(source: source, program: data2.byte0)
       }
-    case .channelPressure:
-      receiver.channelPressure2(source: source, pressure: data2)
-    case .pitchBendChange:
-      receiver.pitchBendChange2(source: source, value: data2)
-    case .perNoteManagement:
-      receiver.perNoteManagement(source: source, note: data1.byte2, detach: data1.byte3[1], reset: data1.byte3[0])
-    case nil:
-      os_log(.error, log: log, "invalid ChannelVoiceMessage - %d", data1)
+    case .channelPressure: receiver.channelPressure2(source: source, pressure: data2)
+    case .pitchBendChange: receiver.pitchBendChange2(source: source, value: data2)
+    case .perNoteManagement: receiver.perNoteManagement(source: source, note: data1.byte2, detach: data1.byte3[1],
+                                                        reset: data1.byte3[0])
+    case nil: os_log(.error, log: log, "invalid ChannelVoiceMessage - %d", data1)
     }
   }
 }
