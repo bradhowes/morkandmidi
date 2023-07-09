@@ -26,7 +26,7 @@ Create a new MIDI instance passing in a name to use for the endpoints that it wi
 assigned to the endpoints:
 
 ```swift
-let midi = MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345)
+let midi = MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345,  midiProto: .legacy)
 midi.monitor = my_monitor
 midi.receiver = my_receiver
 midi.start()
@@ -40,7 +40,8 @@ given a value provided by the system.
 
 # CoreMIDI Protocol Version
 
-The package supports the following CoreMIDI MIDIProtocolID values along with a legacy mode:
+The package supports the following CoreMIDI MIDIProtocolID values along with a legacy mode. These are encoded in 
+the MIDIProto enum of MorkAndMIDI.
 
 * MIDIProto.legacy -- use the older MIDIPacket format (MIDI v1 message format)
 * MIDIProto.v1_0 -- use the newer MIDIEventPacket format with MIDI v1 messages (CoreMIDI MIDIProtocolID._1_0)
