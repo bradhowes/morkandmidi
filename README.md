@@ -26,7 +26,7 @@ Create a new MIDI instance passing in a name to use for the endpoints that it wi
 assigned to the endpoints:
 
 ```swift
-let midi = MorkAndMIDI.MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345)
+let midi = MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345)
 midi.monitor = my_monitor
 midi.receiver = my_receiver
 midi.start()
@@ -37,6 +37,16 @@ guarantee that so instead one should install a `Monitor` to observe the unique I
 `Monitor.initialized` routine once initialization is complete. When there are no conflicts, this value
 will be the same as the one given in the `MIDI` constructor. If there was a conflict, you should be
 given a value provided by the system.
+
+# CoreMIDI Protocol Version
+
+The package supports the following CoreMIDI MIDIProtocolID values along with a legacy mode:
+
+* MIDIProto.legacy -- use the older MIDIPacket format (MIDI v1 message format)
+* MIDIProto.v1_0 -- use the newer MIDIEventPacket format with MIDI v1 messages (CoreMIDI MIDIProtocolID._1_0)
+* MIDIProto.v2_0 -- use the newer MIDIEventPacket format with MIDI v2 messages (CoreMIDI MIDIProtocolID._2_0)
+
+The _legacy_ mode is probably the safest for now as it has had the most testing in my SoundFonts app.
 
 # Processing MIDI Messages
 
@@ -51,12 +61,6 @@ but supporting them should not be too difficult a task -- you just need to buffe
 The `MIDI` class listens for changes to the MIDI nework and creates / destroys connections to external devices when necessary.
 The `Monitor` protocol has methods you can implement to be notified when connections and/or devices change. There is also a
 way to track the MIDI channel being used by an external device.
-
-# MIDIPacket and MIDIPacketList Builders
-
-I implemented my own version of the builders that are available for MIDIPacket and MIDIPacketList in iOS 14+. They are not
-100% replacement, but they do what I need in a safe and performant manner, and they allow me to continue to support iOS 12
-devices in my apps.
 
 
 [License Badge]: https://img.shields.io/github/license/bradhowes/AStar.svg?color=yellow "MIT License"
