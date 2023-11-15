@@ -50,7 +50,8 @@ private extension MIDI1Parser {
       if acceptsCommand(source: source, status: status, command: command),
          let receiver = midi.receiver,
          index + needed <= bytes.endIndex {
-        dispatch(source: source, command: command, receiver: receiver, bytes: bytes, index: index)
+        let channel = command.hasChannel ? UInt8(status & 0x0F) : 0
+        dispatch(source: source, command: command, channel: channel, receiver: receiver, bytes: bytes, index: index)
         if command == .systemExclusive {
 
           // Special case SYSEX because ww do not parse it and so we do not know how many bytes it really needs. We
@@ -73,20 +74,21 @@ private extension MIDI1Parser {
 
   // swiftlint:disable cyclomatic_complexity
 
-  func dispatch(source: MIDIUniqueID, command: MIDI1Parser.MsgKind, receiver: Receiver,
+  func dispatch(source: MIDIUniqueID, command: MIDI1Parser.MsgKind, channel: UInt8, receiver: Receiver,
                 bytes: MIDIPacket.ByteCollection, index: Int) {
     func byte0() -> UInt8 { bytes[index] }
     func byte1() -> UInt8 { bytes[index + 1] }
     func word() -> UInt16 { UInt16(byte1()) << 7 + UInt16(byte0()) }
 
     switch command {
-    case .noteOff: receiver.noteOff(source: source, note: byte0(), velocity: byte1())
-    case .noteOn: receiver.noteOn(source: source, note: byte0(), velocity: byte1())
-    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: source, note: byte0(), pressure: byte1())
-    case .controlChange: receiver.controlChange(source: source, controller: byte0(), value: byte1())
-    case .programChange: receiver.programChange(source: source, program: byte0())
-    case .channelPressure: receiver.channelPressure(source: source, pressure: byte0())
-    case .pitchBendChange: receiver.pitchBendChange(source: source, value: word())
+    case .noteOff: receiver.noteOff(source: source, note: byte0(), velocity: byte1(), channel: channel)
+    case .noteOn: receiver.noteOn(source: source, note: byte0(), velocity: byte1(), channel: channel)
+    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: source, note: byte0(), pressure: byte1(),
+                                                                channel: channel)
+    case .controlChange: receiver.controlChange(source: source, controller: byte0(), value: byte1(), channel: channel)
+    case .programChange: receiver.programChange(source: source, program: byte0(), channel: channel)
+    case .channelPressure: receiver.channelPressure(source: source, pressure: byte0(), channel: channel)
+    case .pitchBendChange: receiver.pitchBendChange(source: source, value: word(), channel: channel)
     case .systemExclusive: break
     case .timeCodeQuarterFrame: receiver.timeCodeQuarterFrame(source: source, value: byte0())
     case .songPositionPointer: receiver.songPositionPointer(source: source, value: word())

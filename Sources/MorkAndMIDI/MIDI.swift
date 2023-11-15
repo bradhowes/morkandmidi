@@ -9,9 +9,8 @@ import CoreMIDI
  */
 public final class MIDI: NSObject {
   private let log: OSLog = Logging.logger("MIDI")
-  public let midi2Capable: Bool
   /// The MIDI protocol we are expecting.
-  public let midiProtocol: MIDIProtocolID
+  public let midiProto: MIDIProto
   /// Collection of endpoint unique IDs and the last channel ID found in a MIDI message from that endpoint
   @objc dynamic
   public private(set) var channels = [MIDIUniqueID: Int]()
@@ -100,32 +99,13 @@ public final class MIDI: NSObject {
 
   /**
    Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic.
-   NOTE: this uses the legacy MIDIPacketList API.
 
    - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
    - parameter uniqueId: the unique ID to use for the input port of the client
-   - parameter legacyAPI: (ignored) this is here in order to not break existing constructor below.
+   - parameter midiProto: the Apple MIDI protocol / API to use
    */
-  public init(clientName: String, uniqueId: MIDIUniqueID, legacyAPI: Bool) {
-    self.midi2Capable = false
-    self.midiProtocol = ._1_0 // not used when midi2Capable is false
-    self.clientName = clientName
-    self.ourUniqueId = uniqueId
-    super.init()
-  }
-
-  /**
-   Create new instance. Initializes CoreMIDI and creates an input port to receive MIDI traffic.
-
-   - parameter clientName: the name for the MIDI client. This will be visible to in CoreMIDI queries
-   - parameter uniqueId: the unique ID to use for the input port of the client
-   - parameter midiProtocol: the MIDI protocol to use (default is 2.0). NOTE: regardless of the protocol, we are always
-   using the latest CoreMIDI API that accepts a MIDIProtocolID and receives Universal MIDI Packet (UMP) inside of the
-   newer MIDIEventList.
-   */
-  public init(clientName: String, uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._2_0) {
-    self.midi2Capable = true
-    self.midiProtocol = midiProtocol
+  public init(clientName: String, uniqueId: MIDIUniqueID, midiProto: MIDIProto = .v2_0) {
+    self.midiProto = midiProto
     self.clientName = clientName
     self.ourUniqueId = uniqueId
     super.init()
@@ -238,7 +218,7 @@ internal extension MIDI {
    - parameter uniqueId: the unique ID to assign to the output port
    - returns: the MIDIEndpointRef of the new output port
    */
-  func createOutputPort(uniqueId: MIDIUniqueID) -> MIDIEndpointRef {
+  func createOutputPort(uniqueId: MIDIUniqueID, midiProtocol: MIDIProtocolID = ._2_0) -> MIDIEndpointRef {
     var outputPort: MIDIEndpointRef = .init()
     let outputPortName = clientName + " Output"
     MIDISourceCreateWithProtocol(client, outputPortName as CFString, midiProtocol, &outputPort)
@@ -272,7 +252,7 @@ internal extension MIDI {
     let inputPortName = inputPortName as CFString
     let result: OSStatus
 
-    if midi2Capable {
+    if let midiProtocol = midiProto.midiProtocolId {
       os_log(.debug, log: self.log, "creating input port with protocol %d (event lists)", midiProtocol.rawValue)
       result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol,
                                                &inputPort) { [weak self] eventListPointer, refCon in

@@ -16,7 +16,7 @@ class MIDITests: MIDITestCase {
   }
 
   func testWithEmptyName() {
-    midi = MIDI(clientName: "", uniqueId: uniqueId, legacyAPI: true)
+    midi = MIDI(clientName: "", uniqueId: uniqueId, midiProto: .legacy)
     XCTAssertTrue(midi.clientName.count == 0)
   }
   

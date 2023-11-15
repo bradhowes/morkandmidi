@@ -57,7 +57,7 @@ class ReceivingTests: MIDITestCase {
   }
 
   func testMIDIv2ReceivingMIDIv2() {
-    createSource1()
+    createSource1(midiProtocol: ._2_0)
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
     sendMIDIEvents(source: source1, protocol: ._2_0)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
@@ -70,7 +70,7 @@ class ReceivingTests: MIDITestCase {
   }
 
   func testMIDIv2ReceivingMIDIv1() {
-    createSource1()
+    createSource1(midiProtocol: ._1_0)
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
     sendMIDIEvents(source: source1, protocol: ._1_0)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
@@ -83,7 +83,7 @@ class ReceivingTests: MIDITestCase {
   }
 
   func testMIDIv2ReceivingLegacyMIDIv1() {
-    createSource1()
+    createSource1(midiProtocol: ._1_0)
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
     sendMIDIPackets(source: source1)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
@@ -94,9 +94,9 @@ class ReceivingTests: MIDITestCase {
   }
 
   func testMIDIv1ReceivingMIDIv2() {
-    createMIDIWithoutStarting(midiProtocol: ._1_0)
+    createMIDIWithoutStarting(midiProto: .v1_0)
     midi.start()
-    createSource1()
+    createSource1(midiProtocol: ._2_0)
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
     sendMIDIEvents(source: source1, protocol: ._2_0)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
@@ -109,9 +109,9 @@ class ReceivingTests: MIDITestCase {
   }
 
   func testMIDIv1ReceivingMIDIv1() {
-    createMIDIWithoutStarting(midiProtocol: ._1_0)
+    createMIDIWithoutStarting(midiProto: .v1_0)
     midi.start()
-    createSource1()
+    createSource1(midiProtocol: ._1_0)
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
     sendMIDIEvents(source: source1, protocol: ._1_0)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
@@ -124,9 +124,50 @@ class ReceivingTests: MIDITestCase {
   }
 
   func testMIDIv1ReceivingLegacyMIDIv1() {
-    createMIDIWithoutStarting(midiProtocol: ._1_0)
+    createMIDIWithoutStarting(midiProto: .v1_0)
     midi.start()
-    createSource1()
+    createSource1(midiProtocol: ._1_0)
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
+    sendMIDIPackets(source: source1)
+    checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
+    XCTAssertEqual(receiver.received, [
+      "noteOn 96 127",
+      "noteOff 96 0"
+    ])
+  }
+
+  func testLegacyMIDIv1ReceivingMIDIv2() {
+    createMIDIWithoutStarting(midiProto: .legacy)
+    midi.start()
+    createSource1(midiProtocol: ._2_0)
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
+    sendMIDIEvents(source: source1, protocol: ._2_0)
+    checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
+
+    // FIXME - this does not look correct
+    XCTAssertEqual(receiver.received, [
+      "noteOn 3 17",
+      "noteOff 1 9"
+    ])
+  }
+
+  func testLegacyMIDIv1ReceivingMIDIv1() {
+    createMIDIWithoutStarting(midiProto: .legacy)
+    midi.start()
+    createSource1(midiProtocol: ._1_0)
+    checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
+    sendMIDIEvents(source: source1, protocol: ._1_0)
+    checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
+    XCTAssertEqual(receiver.received, [
+      "noteOn 96 127",
+      "noteOff 96 0"
+    ])
+  }
+
+  func testLegacyMIDIv1ReceivingLegacyMIDIv1() {
+    createMIDIWithoutStarting(midiProto: .legacy)
+    midi.start()
+    createSource1(midiProtocol: ._1_0)
     checkUntil(elapsed: 5.0) { midi.activeConnections.contains(source1.uniqueId) }
     sendMIDIPackets(source: source1)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }

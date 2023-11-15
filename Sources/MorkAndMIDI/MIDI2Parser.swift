@@ -53,6 +53,7 @@ public struct MIDI2Parser {
     case perNoteManagement = 15
 
     static func from(word: UInt32) -> ChannelVoiceMessage? { .init(rawValue: word.byte1.highNibble) }
+    static func channel(word: UInt32) -> UInt8 { word.byte1.lowNibble }
   }
 
   enum SystemCommonAndRealTimeMessage: UInt8 {
@@ -156,21 +157,24 @@ private extension MIDI2Parser {
   }
 
   func dispatchMIDI1Message(receiver: Receiver, source: MIDIUniqueID, data: UInt32) {
+    let channel = ChannelVoiceMessage.channel(word: data)
     switch ChannelVoiceMessage.from(word: data) {
-    case .noteOff: receiver.noteOff(source: source, note: data.byte2, velocity: data.byte3)
-    case .noteOn: receiver.noteOn(source: source, note: data.byte2, velocity: data.byte3)
-    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: source, note: data.byte2, pressure: data.byte3)
-    case .controlChange: receiver.controlChange(source: source, controller: data.byte2, value: data.byte3)
-    case .programChange: receiver.programChange(source: source, program: data.byte2)
-    case .channelPressure: receiver.channelPressure(source: source, pressure: data.byte2)
-    case .pitchBendChange: receiver.pitchBendChange(source: source, value: toMidi1Word(value: data))
+    case .noteOff: receiver.noteOff(source: source, note: data.byte2, velocity: data.byte3, channel: channel)
+    case .noteOn: receiver.noteOn(source: source, note: data.byte2, velocity: data.byte3, channel: channel)
+    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure(source: source, note: data.byte2, pressure: data.byte3,
+                                                                channel: channel)
+    case .controlChange: receiver.controlChange(source: source, controller: data.byte2, value: data.byte3,
+                                                channel: channel)
+    case .programChange: receiver.programChange(source: source, program: data.byte2, channel: channel)
+    case .channelPressure: receiver.channelPressure(source: source, pressure: data.byte2, channel: channel)
+    case .pitchBendChange: receiver.pitchBendChange(source: source, value: toMidi1Word(value: data), channel: channel)
     default: os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", data)
     }
   }
 
   func dispatchMIDI2Message(receiver: Receiver, source: MIDIUniqueID, data1: UInt32, data2: UInt32) {
     func toInt32(value: UInt32) -> Int32 { .init(bitPattern: value) }
-
+    let channel = ChannelVoiceMessage.channel(word: data1)
     switch ChannelVoiceMessage.from(word: data1) {
     case .registeredPerNoteControllerChange: receiver.registeredPerNoteControllerChange(source: source,
                                                                                         note: data1.byte2,
@@ -191,20 +195,22 @@ private extension MIDI2Parser {
                                                                                           controller: data1.word1,
                                                                                           value: toInt32(value: data2))
     case .perNotePitchBendChange: receiver.perNotePitchBendChange(source: source, note: data1.byte2, value: data2)
-    case .noteOff: receiver.noteOff2(source: source, note: data1.byte2, velocity: data2.word0, attributeType:
-                                      data1.byte3, attributeData: data2.word1)
-    case .noteOn: receiver.noteOn2(source: source, note: data1.byte2, velocity: data2.word0, attributeType: data1.byte3,
-                                   attributeData: data2.word1)
-    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure2(source: source, note: data1.byte2, pressure: data2)
-    case .controlChange: receiver.controlChange2(source: source, controller: data1.byte2, value: data2)
+    case .noteOff: receiver.noteOff2(source: source, note: data1.byte2, velocity: data2.word0, channel: channel,
+                                     attributeType: data1.byte3, attributeData: data2.word1)
+    case .noteOn: receiver.noteOn2(source: source, note: data1.byte2, velocity: data2.word0, channel: channel,
+                                   attributeType: data1.byte3, attributeData: data2.word1)
+    case .polyphonicKeyPressure: receiver.polyphonicKeyPressure2(source: source, note: data1.byte2, pressure: data2,
+                                                                 channel: channel)
+    case .controlChange: receiver.controlChange2(source: source, controller: data1.byte2, value: data2,
+                                                 channel: channel)
     case .programChange:
       if data1.byte3[0] {
-        receiver.programChange2(source: source, program: data2.byte0, bank: data2.word1)
+        receiver.programChange2(source: source, program: data2.byte0, bank: data2.word1, channel: channel)
       } else {
-        receiver.programChange(source: source, program: data2.byte0)
+        receiver.programChange(source: source, program: data2.byte0, channel: channel)
       }
-    case .channelPressure: receiver.channelPressure2(source: source, pressure: data2)
-    case .pitchBendChange: receiver.pitchBendChange2(source: source, value: data2)
+    case .channelPressure: receiver.channelPressure2(source: source, pressure: data2, channel: channel)
+    case .pitchBendChange: receiver.pitchBendChange2(source: source, value: data2, channel: channel)
     case .perNoteManagement: receiver.perNoteManagement(source: source, note: data1.byte2, detach: data1.byte3[1],
                                                         reset: data1.byte3[0])
     case nil: os_log(.error, log: log, "invalid ChannelVoiceMessage - %d", data1)

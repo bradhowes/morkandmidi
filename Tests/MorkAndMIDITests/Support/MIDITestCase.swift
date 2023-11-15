@@ -46,19 +46,12 @@ class MIDITestCase: XCTestCase {
     source2 = .init()
   }
 
-  func createMIDIWithoutStarting(clientName: String = "MIDITestCase'", legacy: Bool = false,
-                                 midiProtocol: MIDIProtocolID = ._2_0 ) {
+  func createMIDIWithoutStarting(clientName: String = "MIDITestCase'", midiProto: MIDIProto = .v2_0) {
     if midi != nil {
       midi.stop()
       midi = nil
     }
-
-    if legacy {
-      midi = MIDI(clientName: clientName, uniqueId: uniqueId, legacyAPI: true)
-    } else {
-      midi = MIDI(clientName: clientName, uniqueId: uniqueId, midiProtocol: midiProtocol)
-    }
-
+    midi = MIDI(clientName: clientName, uniqueId: uniqueId, midiProto: midiProto)
     midi.monitor = monitor
     midi.receiver = receiver
   }
@@ -68,21 +61,21 @@ class MIDITestCase: XCTestCase {
     XCTAssertEqual(MIDIClientCreateWithBlock("TestSource" as CFString, &client, nil), noErr)
   }
 
-  func createSource1() {
+  func createSource1(midiProtocol: MIDIProtocolID = ._2_0) {
     guard source1 == .init() else { return }
     createClient()
     doAndWaitFor(expected: .didUpdateConnections) { _, _ in
-      XCTAssertEqual(MIDISourceCreateWithProtocol(self.client, "Source1" as CFString, self.midi.midiProtocol,
+      XCTAssertEqual(MIDISourceCreateWithProtocol(self.client, "Source1" as CFString, midiProtocol,
                                                   &self.source1), noErr)
       source1.uniqueId = self.uniqueId + 1
     }
   }
 
-  func createSource2() {
+  func createSource2(midiProtocol: MIDIProtocolID = ._2_0) {
     guard source2 == .init() else { return }
     createClient()
     doAndWaitFor(expected: .didUpdateConnections) { _, _ in
-      XCTAssertEqual(MIDISourceCreateWithProtocol(self.client, "Source2" as CFString, self.midi.midiProtocol,
+      XCTAssertEqual(MIDISourceCreateWithProtocol(self.client, "Source2" as CFString, midiProtocol,
                                                   &self.source2), noErr)
       source2.uniqueId = self.uniqueId + 2
     }
