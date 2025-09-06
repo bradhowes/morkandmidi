@@ -101,8 +101,9 @@ class ReceivingTests: MIDITestCase {
     sendMIDIEvents(source: source1, protocol: ._2_0)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
 
-    // FIXME - this does not look correct
     XCTAssertEqual(receiver.received, [
+      "noteOn 96 127",
+      "noteOff 96 0",
       "noteOn 3 17",
       "noteOff 1 9"
     ])
@@ -144,8 +145,9 @@ class ReceivingTests: MIDITestCase {
     sendMIDIEvents(source: source1, protocol: ._2_0)
     checkUntil(elapsed: 5.0) { midi.channels[source1.uniqueId] != nil }
 
-    // FIXME - this does not look correct
     XCTAssertEqual(receiver.received, [
+      "noteOn 96 127",
+      "noteOff 96 0",
       "noteOn 3 17",
       "noteOff 1 9"
     ])
