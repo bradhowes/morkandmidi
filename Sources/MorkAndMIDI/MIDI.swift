@@ -69,6 +69,14 @@ public final class MIDI: NSObject {
     public let channel: Int?
     /// Last seen group in a MIDI message from this device
     public let group: Int?
+
+    public init(uniqueId: MIDIUniqueID, displayName: String, connected: Bool, channel: Int? = nil, group: Int? = nil) {
+      self.uniqueId = uniqueId
+      self.displayName = displayName
+      self.connected = connected
+      self.channel = channel
+      self.group = group
+    }
   }
 
   /// Obtain current state of MIDI connections
