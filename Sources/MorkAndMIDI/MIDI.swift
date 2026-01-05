@@ -88,8 +88,13 @@ public final class MIDI: NSObject {
       let group = groups[uniqueId]
       let channel = channels[uniqueId]
       os_log(.info, log: log, "SourceConnectionState(%d '%{public}s' %d", uniqueId, displayName, connected)
-      return SourceConnectionState(uniqueId: uniqueId, displayName: displayName, connected: connected,
-                                   channel: channel, group: group)
+      return SourceConnectionState(
+        uniqueId: uniqueId,
+        displayName: displayName,
+        connected: connected,
+        channel: channel,
+        group: group
+      )
     }
   }
 
@@ -101,8 +106,13 @@ public final class MIDI: NSObject {
   private lazy var eventQueue: DispatchQueue = {
     let name = clientName.isEmpty ? UUID().uuidString : clientName.onlyAlphaNumerics
     let eventQueueName = "\(Bundle.main.bundleIdentifier ?? "com.braysoft.MorkAndMIDI").midi.\(name).events"
-    return DispatchQueue(label: eventQueueName, qos: .userInitiated, attributes: [], autoreleaseFrequency: .workItem,
-                         target: .global(qos: .userInitiated))
+    return DispatchQueue(
+      label: eventQueueName,
+      qos: .userInitiated,
+      attributes: [],
+      autoreleaseFrequency: .workItem,
+      target: .global(qos: .userInitiated)
+    )
   }()
 
   /**
@@ -194,10 +204,10 @@ public extension MIDI {
    - parameter uniqueId: the unique ID of the endpoint
    - returns: true if established
    */
-  func connect(to uniqueId: MIDIUniqueID) -> Bool {
+  func connect(to uniqueId: MIDIUniqueID, unchecked: Bool = false) -> Bool {
     guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else { return false }
     return eventQueue.sync {
-      guard self.connectSource(endpoint: endpoint) != nil else { return false }
+      guard self.connectSource(endpoint: endpoint, unchecked: unchecked) != nil else { return false }
       self.activeConnections.insert(uniqueId)
       return true
     }
@@ -311,7 +321,7 @@ private extension MIDI {
     monitor?.didUpdateConnections(connected: added, disappeared: disappeared.map { $0 })
   }
 
-  func connectSource(endpoint: MIDIEndpointRef) -> MIDIEndpointRef? {
+  func connectSource(endpoint: MIDIEndpointRef, unchecked: Bool = false) -> MIDIEndpointRef? {
     let name = endpoint.displayName
     let uniqueId = endpoint.uniqueId
     os_log(.info, log: log, "connectSource - %d '%{public}s' %d", uniqueId, name, endpoint)
@@ -321,7 +331,7 @@ private extension MIDI {
       return nil
     }
 
-    guard monitor?.shouldConnect(to: uniqueId) ?? true else {
+    guard unchecked || (monitor?.shouldConnect(to: uniqueId) ?? true) else {
       os_log(.info, log: log, "connectSource - blocked by monitor")
       return nil
     }
