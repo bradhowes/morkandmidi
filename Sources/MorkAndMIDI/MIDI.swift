@@ -88,6 +88,7 @@ public final class MIDI: NSObject {
       let group = groups[uniqueId]
       let channel = channels[uniqueId]
       os_log(.info, log: log, "SourceConnectionState(%d '%{public}s' %d", uniqueId, displayName, connected)
+      os_log(.info, log: log, "activeConnections: %{public}s", String(describing: activeConnections))
       return SourceConnectionState(
         uniqueId: uniqueId,
         displayName: displayName,
