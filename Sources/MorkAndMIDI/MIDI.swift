@@ -219,7 +219,6 @@ extension MIDI {
    - returns: true if disconnected
    */
   public func disconnect(from uniqueId: MIDIUniqueID) {
-    guard KnownSources.matching(uniqueId: uniqueId) != nil else { return }
     eventQueue.sync {
       _ = self.disconnectSource(uniqueId: uniqueId)
       self.activeConnections.remove(uniqueId)
@@ -336,11 +335,13 @@ extension MIDI {
   }
 
   private func connectSource(endpoint: MIDIEndpointRef, unchecked: Bool = false) -> MIDIEndpointRef? {
-    let name = endpoint.displayName
     let uniqueId = endpoint.uniqueId
+    guard uniqueId != ourUniqueId else { return nil }
+
+    let name = endpoint.displayName
     log.info("connectSource - uniqueId: \(uniqueId), name: \(name), endpoint: \(endpoint)")
 
-    guard uniqueId != ourUniqueId && !activeConnections.contains(uniqueId) else {
+    guard !activeConnections.contains(uniqueId) else {
       log.debug("already connected - uniqueId: \(uniqueId) name: \(name)")
       return nil
     }
@@ -366,6 +367,8 @@ extension MIDI {
   }
 
   private func disconnectSource(uniqueId: MIDIUniqueID) -> MIDIEndpointRef? {
+    log.info("disconnectSource - \(uniqueId)")
+
     activeConnections.remove(uniqueId)
     groups.removeValue(forKey: uniqueId)
     channels.removeValue(forKey: uniqueId)
