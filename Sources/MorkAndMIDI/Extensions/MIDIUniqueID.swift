@@ -25,7 +25,7 @@ extension MIDIUniqueID {
   }
 }
 
-extension MIDIUniqueID: @retroactive CustomDebugStringConvertible {
+extension MIDIUniqueID {
 
-  public var debugDescription: String { "0x\(String(self, radix: 16, uppercase: true))" }
+  public var asHex: String { "0x\(String(UInt32(self), radix: 16, uppercase: true))" }
 }

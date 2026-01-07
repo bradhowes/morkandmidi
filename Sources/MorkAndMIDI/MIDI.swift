@@ -85,7 +85,7 @@ public final class MIDI: NSObject {
       let connected = activeConnections.contains(uniqueId)
       let group = groups[uniqueId]
       let channel = channels[uniqueId]
-      log.info("SourceConnectionState: id: \(uniqueId) name: \(displayName) connected: \(connected)")
+      log.info("SourceConnectionState: id: \(uniqueId.asHex) name: \(displayName) connected: \(connected)")
       return SourceConnectionState(
         uniqueId: uniqueId,
         displayName: displayName,
@@ -191,7 +191,7 @@ extension MIDI {
    - parameter channel: the channel number
    */
   public func updateEndpointInfo(uniqueId: MIDIUniqueID, group: Int, channel: Int) {
-    log.debug("updateEndpointInfo - uniqueId: \(uniqueId) group: \(group) channel: \(channel)")
+    log.debug("updateEndpointInfo - uniqueId: \(uniqueId.asHex) group: \(group) channel: \(channel)")
     groups[uniqueId] = group
     channels[uniqueId] = channel
     monitor?.didSee(uniqueId: uniqueId, group: group, channel: channel)
@@ -270,12 +270,9 @@ extension MIDI {
     if let midiProtocol = midiProto.midiProtocolId {
       log.debug("creating input port with protocol \(midiProtocol.rawValue) (event lists)")
       result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol, &inputPort) { [weak self] eventList, refCon in
-        guard
-          let self,
-          let uniqueId = MIDIUniqueID.unbox(refCon),
-          case let Parser.v2(parser)? = self.parsers[uniqueId]
-        else {
-          log.debug("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection")
+        guard let self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
+        guard case let Parser.v2(parser)? = self.parsers[uniqueId] else {
+          log.debug("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection \(uniqueId.asHex)")
           return
         }
         self.processEventList(eventList: eventList, uniqueId: uniqueId, parser: parser)
@@ -283,11 +280,8 @@ extension MIDI {
     } else {
       log.debug("creating legacy input port (packet lists)")
       result = MIDIInputPortCreateWithBlock(client, inputPortName, &inputPort) { [weak self] packetList, refCon in
-        guard
-          let self,
-          let uniqueId = MIDIUniqueID.unbox(refCon),
-          case let Parser.v1(parser)? = self.parsers[uniqueId]
-        else {
+        guard let self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
+        guard case let Parser.v1(parser)? = self.parsers[uniqueId] else {
           log.debug("MIDIInputPortCreateWithBlock incoming traffic - unknown connection")
           return
         }
@@ -302,14 +296,14 @@ extension MIDI {
 extension MIDI {
 
   private func processPacketList(packetList: UnsafePointer<MIDIPacketList>, uniqueId: MIDIUniqueID, parser: MIDI1Parser) {
-    log.debug("processPacketList - \(uniqueId)")
+    log.debug("processPacketList - \(uniqueId.asHex)")
     for packet in packetList.unsafeSequence() {
       parser.parse(source: uniqueId, bytes: MIDIPacket.ByteCollection(packet))
     }
   }
 
   private func processEventList(eventList: UnsafePointer<MIDIEventList>, uniqueId: MIDIUniqueID, parser: MIDI2Parser) {
-    log.debug("processEventList - \(uniqueId)")
+    log.debug("processEventList - \(uniqueId.asHex)")
     eventList.unsafeSequence().forEach { eventPacket in
       parser.parse(source: uniqueId, words: eventPacket.words())
     }
@@ -339,10 +333,10 @@ extension MIDI {
     guard uniqueId != ourUniqueId else { return nil }
 
     let name = endpoint.displayName
-    log.info("connectSource - uniqueId: \(uniqueId), name: \(name), endpoint: \(endpoint)")
+    log.info("connectSource - uniqueId: \(uniqueId.asHex), name: \(name), endpoint: \(endpoint)")
 
     guard !activeConnections.contains(uniqueId) else {
-      log.debug("already connected - uniqueId: \(uniqueId) name: \(name)")
+      log.debug("already connected - uniqueId: \(uniqueId.asHex) name: \(name)")
       return nil
     }
 
@@ -354,7 +348,7 @@ extension MIDI {
     let refCon = uniqueId.boxed
     refCons[uniqueId] = refCon
 
-    log.info("connecting endpoint - uniqueId: \(uniqueId) name: \(name) endpoint: \(endpoint) refCon: \(refCon)")
+    log.info("connecting endpoint - uniqueId: \(uniqueId.asHex) name: \(name) endpoint: \(endpoint) refCon: \(refCon)")
     let success = MIDIPortConnectSource(inputPort, endpoint, refCon)
       .wasSuccessful(log, "MIDIPortConnectSource")
     if success {
@@ -367,7 +361,7 @@ extension MIDI {
   }
 
   private func disconnectSource(uniqueId: MIDIUniqueID) -> MIDIEndpointRef? {
-    log.info("disconnectSource - \(uniqueId)")
+    log.info("disconnectSource - \(uniqueId.asHex)")
 
     activeConnections.remove(uniqueId)
     groups.removeValue(forKey: uniqueId)
@@ -380,7 +374,7 @@ extension MIDI {
 
     // We need the endpoint to disconnect from, but it may not exist due to a disconnected cable.
     guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else {
-      log.debug("no endpoint with uniqueId \(uniqueId)")
+      log.debug("no endpoint with uniqueId \(uniqueId.asHex)")
       return nil
     }
 
