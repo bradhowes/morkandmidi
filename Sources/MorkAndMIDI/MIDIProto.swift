@@ -1,9 +1,11 @@
+// Copyright © 2025-2026 Brad Howes. All rights reserved.
+
 import CoreMIDI
 
 // Support 3 modes of operation:
-// - legacy mode that processes MIDI v1 packet lists
-// - modern mode that processes MIDI v1 event lists
-// - modern mode that processes MIDI v2 event lists
+// - legacy mode that processes packet lists with MIDI v1 messages
+// - modern mode that processes event lists with MIDI v1 messages
+// - modern mode that processes event lists with MIDI v2 messages
 //
 public enum MIDIProto: Int32, @unchecked Sendable {
   case legacy = 0

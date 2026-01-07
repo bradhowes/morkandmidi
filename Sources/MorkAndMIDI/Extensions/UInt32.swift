@@ -1,4 +1,4 @@
-// Copyright © 2023 Brad Howes. All rights reserved.
+// Copyright © 2023-2026 Brad Howes. All rights reserved.
 
 public extension UInt32 {
   /// Access the first (most-significant) byte of the integer

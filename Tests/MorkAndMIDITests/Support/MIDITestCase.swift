@@ -1,4 +1,4 @@
-// Copyright © 2023 Brad Howes. All rights reserved.
+// Copyright © 2023-2026 Brad Howes. All rights reserved.
 import os
 @testable import MorkAndMIDI
 import CoreMIDI
