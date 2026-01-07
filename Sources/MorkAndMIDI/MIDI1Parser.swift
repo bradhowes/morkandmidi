@@ -1,12 +1,10 @@
 // Copyright © 2021 Brad Howes. All rights reserved.
 
 import CoreMIDI
-import os.log
+import OSLog
 
 /// Legacy parser for MIDI 1.0 messages.
-internal class MIDI1Parser {
-  private var log: OSLog { Logging.logger("MIDI1Parser") }
-
+class MIDI1Parser {
   private let noReceiver: Int  = -2
   private let allChannels: Int  = -1
   private let midi: MIDI
@@ -26,18 +24,18 @@ internal class MIDI1Parser {
     // Uff. In testing with Arturia Minilab mk II, I can sometimes generate packets with zero or really big
     // sizes of 26624 (0x6800!)
     if byteCount == 0 || byteCount > 64 {
-      os_log(.error, log: log, "suspect packet size %d", byteCount)
+      log.error("suspect packet size \(byteCount)")
       return
     }
 
-    os_log(.debug, log: log, "packet - %d bytes", byteCount)
+    log.debug("packet - \(byteCount) bytes")
     processBytes(source: source, bytes: bytes)
   }
 }
 
-private extension MIDI1Parser {
+extension MIDI1Parser {
 
-  func processBytes(source: MIDIUniqueID, bytes: MIDIPacket.ByteCollection) {
+  private func processBytes(source: MIDIUniqueID, bytes: MIDIPacket.ByteCollection) {
     var index = bytes.startIndex
     while index < bytes.endIndex {
       let status = bytes[index]
@@ -63,18 +61,18 @@ private extension MIDI1Parser {
     }
   }
 
-  func acceptsCommand(source: MIDIUniqueID, status: UInt8, command: MIDI1Parser.MsgKind) -> Bool {
+  private func acceptsCommand(source: MIDIUniqueID, status: UInt8, command: MIDI1Parser.MsgKind) -> Bool {
     guard command.hasChannel else { return true }
     let receiverChannel = midi.receiver?.channel ?? noReceiver
     let packetChannel = Int(status & 0x0F)
     midi.updateEndpointInfo(uniqueId: source, group: -1, channel: packetChannel)
-    os_log(.debug, log: log, "message: %d packetChannel: %d", command.rawValue, packetChannel)
+    log.debug("message: \(command.rawValue) packetChannel: \(packetChannel)")
     return receiverChannel == allChannels || receiverChannel == packetChannel
   }
 
   // swiftlint:disable cyclomatic_complexity
 
-  func dispatch(source: MIDIUniqueID, command: MIDI1Parser.MsgKind, channel: UInt8, receiver: Receiver,
+  private func dispatch(source: MIDIUniqueID, command: MIDI1Parser.MsgKind, channel: UInt8, receiver: Receiver,
                 bytes: MIDIPacket.ByteCollection, index: Int) {
     func byte0() -> UInt8 { bytes[index] }
     func byte1() -> UInt8 { bytes[index + 1] }
@@ -106,7 +104,7 @@ private extension MIDI1Parser {
   // swiftlint:enable cyclomatic_complexity
 
   /// MIDI commands (v1)
-  enum MsgKind: UInt8 {
+  private enum MsgKind: UInt8 {
     case noteOff = 0x80
     case noteOn = 0x90
     case polyphonicKeyPressure = 0xA0
@@ -165,3 +163,5 @@ private extension MIDI1Parser {
     }
   }
 }
+
+private let log: Logger = .init(category: "MIDI1Parser")

@@ -1,13 +1,12 @@
 // Copyright © 2023 Brad Howes. All rights reserved.
 
 import CoreMIDI
-import os.log
+import OSLog
 
 /**
  Parser of Universal MIDI Packet (v2 of MIDI spec)
  */
 public struct MIDI2Parser {
-  private let log: OSLog = Logging.logger("MIDI2Parser")
   private let allChannelGroupFilter = -1
   private let neverChannelGroupFilter = -2
 
@@ -109,12 +108,12 @@ public extension MIDI2Parser {
       let word0 = words[index]
 
       guard let messageType = UniversalMessageType.from(word: word0) else {
-        os_log(.error, log: log, "invalid UniversalMessageType - %d", word0)
+        log.error("invalid UniversalMessageType - \(word0)")
         return
       }
 
       switch messageType {
-      case .utility: os_log(.debug, log: log, "skipping utility messages")
+      case .utility: log.debug("skipping utility messages")
       case .systemCommonAndRealTime:
         if let receiver = receiver {
           dispatchSystemCommandAndRealTime(receiver: receiver, source: source, data: word0)
@@ -123,13 +122,13 @@ public extension MIDI2Parser {
         if let receiver = acceptsMessage(word0) {
           dispatchMIDI1Message(receiver: receiver, source: source, data: word0)
         }
-      case .data64bit: os_log(.debug, log: log, "skipping data64bit messages")
+      case .data64bit: log.debug("skipping data64bit messages")
       case .midi2ChannelVoice:
         if let receiver = acceptsMessage(word0) {
           let word1 = words[index.advanced(by: 1)]
           dispatchMIDI2Message(receiver: receiver, source: source, data1: word0, data2: word1)
         }
-      case .data128bit: os_log(.debug, log: log, "skipping data128bit messages")
+      case .data128bit: log.debug("skipping data128bit messages")
       }
 
       index = index.advanced(by: messageType.wordCount)
@@ -152,7 +151,7 @@ private extension MIDI2Parser {
     case .stopCurrentSequence: receiver.stopCurrentSequence(source: source)
     case .activeSensing: receiver.activeSensing(source: source)
     case .reset: receiver.systemReset(source: source)
-    case nil: os_log(.error, log: log, "invalid SystemCommonAndRealTimeMessage - %d", data)
+    case nil: log.error("invalid SystemCommonAndRealTimeMessage - \(data)")
     }
   }
 
@@ -168,7 +167,7 @@ private extension MIDI2Parser {
     case .programChange: receiver.programChange(source: source, program: data.byte2, channel: channel)
     case .channelPressure: receiver.channelPressure(source: source, pressure: data.byte2, channel: channel)
     case .pitchBendChange: receiver.pitchBendChange(source: source, value: toMidi1Word(value: data), channel: channel)
-    default: os_log(.error, log: log, "invalid ChannelVoiceMessage for midi1CHannelVoice - %d", data)
+    default: log.error("invalid ChannelVoiceMessage for midi1CHannelVoice - \(data)")
     }
   }
 
@@ -213,8 +212,10 @@ private extension MIDI2Parser {
     case .pitchBendChange: receiver.pitchBendChange2(source: source, value: data2, channel: channel)
     case .perNoteManagement: receiver.perNoteManagement(source: source, note: data1.byte2, detach: data1.byte3[1],
                                                         reset: data1.byte3[0])
-    case nil: os_log(.error, log: log, "invalid ChannelVoiceMessage - %d", data1)
+    case nil: log.error("invalid ChannelVoiceMessage - \(data1)")
     }
   }
 }
 // swiftlint:enable cyclomatic_complexity
+
+private let log: Logger = .init(category: "MIDI2Parsser")

@@ -5,8 +5,12 @@ import os
 
 extension MIDIObjectRef {
 
-  private var log: OSLog { Logging.logger("MIDIObjectRef") }
+  /**
+   Get a property value as a string.
 
+   - parameter property: the name of the property
+   - returns: the property value
+   */
   func get(_ property: CFString) -> String {
     var param: Unmanaged<CFString>?
     guard MIDIObjectGetStringProperty(self, property, &param)
@@ -15,11 +19,23 @@ extension MIDIObjectRef {
     return param.takeUnretainedValue() as String
   }
 
+  /**
+   Set a property value as a string.
+
+   - parameter property: the name of the property
+   - parameter value: the value to store
+   */
   func set(_ property: CFString, to value: String) {
     _ = MIDIObjectSetStringProperty(self, property, value as CFString)
       .wasSuccessful(log, "MIDIObjectSetStringProperty", property as String)
   }
 
+  /**
+   Get a property value as a 32-bit integer.
+
+   - parameter property: the name of the property
+   - returns: the property value
+   */
   func get(_ property: CFString) -> Int32 {
     var param: Int32 = 0
     _ = MIDIObjectGetIntegerProperty(self, property, &param)
@@ -27,13 +43,19 @@ extension MIDIObjectRef {
     return param
   }
 
+  /**
+   Set a property value as a 32-bit inteeger.
+
+   - parameter property: the name of the property
+   - parameter value: the value to store
+   */
   func set(_ property: CFString, to value: Int32) {
     _ = MIDIObjectSetIntegerProperty(self, property, value)
       .wasSuccessful(log, "MIDIObjectSetIntegerProperty", property as String)
   }
 }
 
-public extension MIDIObjectRef {
+extension MIDIObjectRef {
   /// Obtain the product name for a MIDI object.
   var name: String {
     get { get(kMIDIPropertyName) }
@@ -49,7 +71,7 @@ public extension MIDIObjectRef {
     get { get(kMIDIPropertyModel) }
     set { set(kMIDIPropertyModel, to: newValue)}
   }
-  /// Obtain the display name for a MIDI object. This is
+  /// Obtain the display name for a MIDI object.
   var displayName: String { return get(kMIDIPropertyDisplayName) }
 
   /// Obtain the unique ID for a MIDI object
@@ -63,3 +85,5 @@ public extension MIDIObjectRef {
     set { set(kMIDIPropertyPrivate, to: newValue ? 1 : 0) }
   }
 }
+
+private let log: Logger = .init(category: "MIDIObjectRef")

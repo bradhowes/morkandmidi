@@ -39,9 +39,9 @@ internal extension OSStatus {
    - returns: true if this value is `noErr`
    */
   @discardableResult
-  func wasSuccessful(_ log: OSLog, _ name: String) -> Bool {
+  func wasSuccessful(_ log: Logger, _ name: String) -> Bool {
     guard self != noErr else { return true }
-    os_log(.error, log: log, "%{public}s - %d %{public}s", name, self, self.tag)
+    log.error("\(name) - \(self) \(self.tag)")
     return false
   }
 
@@ -54,9 +54,9 @@ internal extension OSStatus {
    - returns: true if this value is `noErr`
    */
   @discardableResult
-  func wasSuccessful(_ log: OSLog, _ name: String, _ tag: String) -> Bool {
+  func wasSuccessful(_ log: Logger, _ name: String, _ tag: String) -> Bool {
     guard self != noErr else { return true }
-    os_log(.error, log: log, "%{public}s(%{public}s) - %d %{public}s", name, tag, self, self.tag)
+    log.error("\(name)(\(tag)) - \(self) \(self.tag)")
     return false
   }
 }

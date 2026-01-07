@@ -22,6 +22,7 @@ class MonitorTests: MIDITestCase {
   }
 
   func testWillUninitialize() {
+    createMIDIWithoutStarting()
     doAndWaitFor(expected: .willUninitialize) {
       midi = nil
     }

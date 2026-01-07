@@ -3,7 +3,6 @@
 @testable import MorkAndMIDI
 import CoreMIDI
 import XCTest
-import os.log
 
 class OSStatusTests: XCTestCase {
 
@@ -29,7 +28,9 @@ class OSStatusTests: XCTestCase {
   }
 
   func testWasSuccessful() {
-    XCTAssertTrue(noErr.wasSuccessful(OSLog(subsystem: "foo", category: "bar"), "hello"))
-    XCTAssertFalse(kMIDIInvalidPort.wasSuccessful(OSLog(subsystem: "foo", category: "bar"), "hello"))
+    XCTAssertTrue(noErr.wasSuccessful(log, "hello"))
+    XCTAssertFalse(kMIDIInvalidPort.wasSuccessful(log, "hello"))
   }
 }
+
+private let log: Logger = .init(category: "OSStatusTests")

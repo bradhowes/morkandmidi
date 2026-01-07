@@ -3,6 +3,8 @@
 import Foundation
 
 internal extension String {
+
+  /// - returns: new value with only alpha-numeric characters remaining
   var onlyAlphaNumerics: String {
     unicodeScalars
       .filter { CharacterSet.alphanumerics.contains($0) }
