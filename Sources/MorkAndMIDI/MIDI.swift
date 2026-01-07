@@ -85,14 +85,8 @@ public final class MIDI: NSObject {
       let connected = activeConnections.contains(uniqueId)
       let group = groups[uniqueId]
       let channel = channels[uniqueId]
-      log.info("SourceConnectionState: id: \(uniqueId.asHex) name: \(displayName) connected: \(connected)")
-      return SourceConnectionState(
-        uniqueId: uniqueId,
-        displayName: displayName,
-        connected: connected,
-        channel: channel,
-        group: group
-      )
+      log.info("SourceConnectionState: endpoint: \(endpoint) uniqueId: \(uniqueId.asHex) name: \(displayName) connected: \(connected)")
+      return .init(uniqueId: uniqueId, displayName: displayName, connected: connected, channel: channel, group: group)
     }
   }
 
@@ -185,7 +179,8 @@ extension MIDI {
   }
 
   /**
-   Associate a channel number with the unique ID of a connection endpoint.
+   Associate a channel number with the unique ID of a connection endpoint. Called by a parser to convey what group/channel is
+   currenty being sent from a connection.
 
    - parameter uniqueId: the uniqueId of the endpoints
    - parameter channel: the channel number
@@ -201,12 +196,17 @@ extension MIDI {
    Establish a connection to the endpoint with the given unique ID
 
    - parameter uniqueId: the unique ID of the endpoint
+   - parameter unchecked: if `true` then do not ask a `monitor` to validate the connection
    - returns: true if established
    */
   public func connect(to uniqueId: MIDIUniqueID, unchecked: Bool = false) -> Bool {
-    guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else { return false }
+    let endpoints = KnownSources.matching(uniqueId: uniqueId)
+    guard endpoints.count == 1 else {
+      log.info("connect - invalid endpoints: \(endpoints)")
+      return false
+    }
     return eventQueue.sync {
-      guard self.connectSource(endpoint: endpoint, unchecked: unchecked) != nil else { return false }
+      guard self.connectSource(endpoint: endpoints[0], unchecked: unchecked) != nil else { return false }
       self.activeConnections.insert(uniqueId)
       return true
     }
@@ -272,7 +272,7 @@ extension MIDI {
       result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol, &inputPort) { [weak self] eventList, refCon in
         guard let self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
         guard case let Parser.v2(parser)? = self.parsers[uniqueId] else {
-          log.debug("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection \(uniqueId.asHex)")
+          log.info("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection \(uniqueId.asHex)")
           return
         }
         self.processEventList(eventList: eventList, uniqueId: uniqueId, parser: parser)
@@ -282,7 +282,7 @@ extension MIDI {
       result = MIDIInputPortCreateWithBlock(client, inputPortName, &inputPort) { [weak self] packetList, refCon in
         guard let self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
         guard case let Parser.v1(parser)? = self.parsers[uniqueId] else {
-          log.debug("MIDIInputPortCreateWithBlock incoming traffic - unknown connection")
+          log.info("MIDIInputPortCreateWithBlock incoming traffic - unknown connection")
           return
         }
         self.processPacketList(packetList: packetList, uniqueId: uniqueId, parser: parser)
@@ -313,17 +313,17 @@ extension MIDI {
     log.info("updateConnections")
     monitor?.willUpdateConnections()
 
-    let active = KnownSources.all.filter { $0.uniqueId != ourUniqueId }
-    let added = active.compactMap { connectSource(endpoint: $0) }
+    let sources = KnownSources.all.filter { $0.uniqueId != ourUniqueId }
+    let added = sources.compactMap { connectSource(endpoint: $0) }
 
-    let disappeared = activeConnections.subtracting(active.uniqueIds)
+    let disappeared = activeConnections.subtracting(sources.uniqueIds)
     let removed = disappeared.compactMap { disconnectSource(uniqueId: $0) }
 
     activeConnections.formUnion(added.map { $0.uniqueId })
     activeConnections.subtract(removed.map { $0.uniqueId })
 
-    log.debug("activeConnections: \(activeConnections.description)")
-    log.debug("parsers: \(parsers.description)")
+    log.debug("activeConnections: \(activeConnections.map(\.asHex))")
+    log.debug("parsers: \(parsers.map{"\($0.0.asHex) : \($0.1)"})")
 
     monitor?.didUpdateConnections(connected: added, disappeared: disappeared.map { $0 })
   }
@@ -333,10 +333,10 @@ extension MIDI {
     guard uniqueId != ourUniqueId else { return nil }
 
     let name = endpoint.displayName
-    log.info("connectSource - uniqueId: \(uniqueId.asHex), name: \(name), endpoint: \(endpoint)")
+    log.info("connectSource - endpoint: \(endpoint) uniqueId: \(uniqueId.asHex), name: \(name), endpoint: \(endpoint)")
 
     guard !activeConnections.contains(uniqueId) else {
-      log.debug("already connected - uniqueId: \(uniqueId.asHex) name: \(name)")
+      log.debug("endpoint \(endpoint) already connected - uniqueId: \(uniqueId.asHex) name: \(name)")
       return nil
     }
 
@@ -373,19 +373,20 @@ extension MIDI {
     }
 
     // We need the endpoint to disconnect from, but it may not exist due to a disconnected cable.
-    guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else {
-      log.debug("no endpoint with uniqueId \(uniqueId.asHex)")
+    let endpoints = KnownSources.matching(uniqueId: uniqueId)
+    guard endpoints.count == 1 else {
+      log.debug("invalid endpoints with uniqueId \(uniqueId.asHex) - \(endpoints)")
       return nil
     }
 
-    return MIDIPortDisconnectSource(inputPort, endpoint)
-      .wasSuccessful(log, "MIDIPortDisconnectSource") ? endpoint : nil
+    return MIDIPortDisconnectSource(inputPort, endpoints[0])
+      .wasSuccessful(log, "MIDIPortDisconnectSource") ? endpoints[0] : nil
   }
 
   private func initializeInputPort() {
     log.debug("initializeInputPort")
 
-    if KnownDestinations.matching(uniqueId: ourUniqueId) == nil {
+    if KnownDestinations.matching(uniqueId: ourUniqueId).isEmpty {
       ourUniqueId = inputPort.uniqueId
     } else {
       inputPort.uniqueId = ourUniqueId

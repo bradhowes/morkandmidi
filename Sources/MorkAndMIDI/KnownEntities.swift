@@ -17,7 +17,7 @@ internal struct KnownEntityCollection<Provider: KnownEntityProvider>: Collection
 
   static var all: [MIDIEndpointRef] { (0..<Provider.count).map { Provider.get(at: $0) } }
   static func matching(name: String) -> [MIDIEndpointRef] { all.filter { $0.name == name } }
-  static func matching(uniqueId: MIDIUniqueID) -> MIDIEndpointRef? { all.first { $0.uniqueId == uniqueId } }
+  static func matching(uniqueId: MIDIUniqueID) -> [MIDIEndpointRef] { all.filter { $0.uniqueId == uniqueId } }
 }
 
 extension Collection where Element == MIDIEndpointRef {

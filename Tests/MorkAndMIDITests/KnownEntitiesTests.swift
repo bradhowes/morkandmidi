@@ -56,8 +56,8 @@ class KnownSourcesTests: MIDITestCase {
     let sources = KnownSources.all
     let first = sources[0]
     print(first.uniqueId, first.name)
-    XCTAssertNotNil(KnownSources.matching(uniqueId: uniqueId + 1))
-    XCTAssertNotNil(KnownSources.matching(uniqueId: uniqueId + 2))
-    XCTAssertNil(KnownSources.matching(uniqueId: uniqueId + 3))
+    XCTAssertNotEqual(KnownSources.matching(uniqueId: uniqueId + 1), [])
+    XCTAssertNotEqual(KnownSources.matching(uniqueId: uniqueId + 2), [])
+    XCTAssertEqual(KnownSources.matching(uniqueId: uniqueId + 3), [])
   }
 }
