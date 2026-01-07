@@ -1,16 +1,9 @@
+LLVM_COV_ARGS = -instr-profile .build/debug/codecov/default.profdata -ignore-filename-regex='.build/|Tests/'
 
 default: coverage
 
-build: clean
-	swift build -v
-
-retest:
-	swift test -v --enable-code-coverage
-
-test: build
-	swift test -v --enable-code-coverage
-
-LLVM_COV_ARGS = -instr-profile .build/debug/codecov/default.profdata -ignore-filename-regex='.build/|Tests/'
+test: clean
+	swift test --enable-code-coverage
 
 cov.txt: test
 	set -- $$(find . -name '*.xctest'); \
