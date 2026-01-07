@@ -4,6 +4,9 @@ import CoreMIDI
 import MorkAndMIDI
 
 
+let foo: Int32 = -1
+let bar: UInt32 = UInt32(bitPattern: foo)
+
 func boxUniqueId(_ uniqueId: MIDIUniqueID) -> UnsafeMutablePointer<MIDIUniqueID> {
   let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
   refCon.initialize(to: uniqueId)

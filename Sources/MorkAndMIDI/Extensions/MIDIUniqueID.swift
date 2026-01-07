@@ -8,7 +8,7 @@ extension MIDIUniqueID {
    Allocate storage for MIDIUniqueID and return to use as a `refCon` parameter in MIDI API calls.
    - returns: pointer to memory holding the MIDIUniqueID value
    */
-  var boxed: UnsafeMutablePointer<MIDIUniqueID> {
+  public var boxed: UnsafeMutablePointer<MIDIUniqueID> {
     let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
     refCon.initialize(to: self)
     return refCon
@@ -20,12 +20,12 @@ extension MIDIUniqueID {
    - parameter refCon: optional raw pointer assumed to originate from `MIDIUniqueID.refCon`
    - returns: the extracted MIDIUniquePtr if `refCon` exists
    */
-  static func unbox(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID? {
+  public static func unbox(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID? {
     refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee
   }
 }
 
 extension MIDIUniqueID {
 
-  public var asHex: String { "0x\(String(UInt32(self), radix: 16, uppercase: true))" }
+  public var asHex: String { String(format: "0x%08X", UInt32(bitPattern: self)) }
 }

@@ -57,30 +57,30 @@ extension MIDIObjectRef {
 
 extension MIDIObjectRef {
   /// Obtain the product name for a MIDI object.
-  var name: String {
+  public var name: String {
     get { get(kMIDIPropertyName) }
     set { set(kMIDIPropertyName, to: newValue)}
   }
   /// Obtain the manufacturer name for a MIDI object.
-  var manufacturer: String {
+  public var manufacturer: String {
     get { get(kMIDIPropertyManufacturer) }
     set { set(kMIDIPropertyManufacturer, to: newValue)}
   }
   /// Obtain the product name for a MIDI object.
-  var model: String {
+  public var model: String {
     get { get(kMIDIPropertyModel) }
     set { set(kMIDIPropertyModel, to: newValue)}
   }
   /// Obtain the display name for a MIDI object.
-  var displayName: String { return get(kMIDIPropertyDisplayName) }
+  public var displayName: String { return get(kMIDIPropertyDisplayName) }
 
   /// Obtain the unique ID for a MIDI object
-  var uniqueId: MIDIUniqueID {
+  public var uniqueId: MIDIUniqueID {
     get { get(kMIDIPropertyUniqueID) }
     set { set(kMIDIPropertyUniqueID, to: newValue) }
   }
   /// Control the visibility of the endpoint
-  var hidden: Bool {
+  public var hidden: Bool {
     get { get(kMIDIPropertyPrivate) == 1 }
     set { set(kMIDIPropertyPrivate, to: newValue ? 1 : 0) }
   }

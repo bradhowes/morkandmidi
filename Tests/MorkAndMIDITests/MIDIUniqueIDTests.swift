@@ -2,7 +2,9 @@
 
 import CoreMIDI
 import XCTest
-@testable import MorkAndMIDI
+
+// not `@testable` to make sure the attributes being tested are public
+import MorkAndMIDI
 
 class MIDIUniqueIDTests: XCTestCase {
 
@@ -15,5 +17,10 @@ class MIDIUniqueIDTests: XCTestCase {
 
   func testUnboxingNilIsSafe() {
     XCTAssertNil(MIDIUniqueID.unbox(nil))
+  }
+
+  func testAsHex() {
+    XCTAssertEqual(MIDIUniqueID(-1).asHex,  "0xFFFFFFFF")
+    XCTAssertEqual(MIDIUniqueID(123).asHex, "0x0000007B")
   }
 }
