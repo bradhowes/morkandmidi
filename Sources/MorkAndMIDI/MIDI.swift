@@ -378,8 +378,9 @@ extension MIDI {
       refCon.deallocate()
     }
 
+    // We need the endpoint to disconnect from, but it may not exist due to a disconnected cable.
     guard let endpoint = KnownSources.matching(uniqueId: uniqueId) else {
-      log.error("unable to disconnect - no endpoint with uniqueId \(uniqueId)")
+      log.debug("no endpoint with uniqueId \(uniqueId)")
       return nil
     }
 
