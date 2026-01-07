@@ -1,4 +1,4 @@
-// Copyright © 2023 Brad Howes. All rights reserved.
+// Copyright © 2023, 2026 Brad Howes. All rights reserved.
 
 import os.log
 import CoreMIDI
@@ -220,7 +220,6 @@ public extension MIDI {
    - returns: true if disconnected
    */
   func disconnect(from uniqueId: MIDIUniqueID) {
-    guard KnownSources.matching(uniqueId: uniqueId) != nil else { return }
     eventQueue.sync {
       _ = self.disconnectSource(uniqueId: uniqueId)
       self.activeConnections.remove(uniqueId)
