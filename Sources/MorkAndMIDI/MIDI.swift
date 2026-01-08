@@ -288,7 +288,18 @@ extension MIDI {
       let notification = notificationPointer.pointee
       let messageID = notification.messageID
       log.debug("client callback: \(messageID.tag)")
-      if messageID  == .msgSetupChanged {
+
+      // See if an endpoint is being removed and disconnect from the source if so.
+      if messageID == .msgObjectRemoved {
+        notificationPointer.withMemoryRebound(to: MIDIObjectAddRemoveNotification.self, capacity: 1) {
+          for (obj, type) in [($0.pointee.child, $0.pointee.childType), ($0.pointee.parent, $0.pointee.parentType)] {
+            if type == .source && obj != 0 {
+              _ = self.disconnectSource(uniqueId: obj.uniqueId)
+            }
+          }
+        }
+      }
+      else if messageID == .msgSetupChanged {
         self.eventQueue.async {
           self.updateConnections()
         }
