@@ -39,7 +39,7 @@ class Monitor: MorkAndMIDI.MonitorWithDefaults {
   }
 
   func didUpdateConnections(added: [MIDIEndpointRef], removed: [MIDIEndpointRef]) {
-    print("didUpdateConnctions \(added.map { $0.uniqueId }) \(removed.map { $0.uniqueId })")
+    print("didUpdateConnctions \(added.map(\.uniqueId)) \(removed.map(\.uniqueId))")
   }
 
   func traffic(endpoint: MIDIEndpointRef) {
@@ -90,3 +90,5 @@ func sendNotes() {
   packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_81_60_00)])
   err = packetBuilder.withUnsafePointer { MIDIReceivedEventList(virtualOut, $0) }
 }
+
+sendNotes()
