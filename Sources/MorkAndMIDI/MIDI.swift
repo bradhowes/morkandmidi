@@ -50,8 +50,19 @@ public final class MIDI: NSObject {
     case v2(MIDI2Parser)
   }
 
-  private var refCons = [MIDIUniqueID: UnsafeMutablePointer<MIDIUniqueID>]()
-  private var parsers: [MIDIUniqueID:Parser] = [:]
+  struct ConnectionState {
+    let parser: Parser
+    let refCon: UnsafeMutablePointer<MIDIEndpointRef>
+    let timestamp: ContinuousClock.Instant
+
+    init(parser: Parser, refCon: UnsafeMutablePointer<MIDIEndpointRef>) {
+      self.parser = parser
+      self.refCon = refCon
+      self.timestamp = .now
+    }
+  }
+
+  private var connectionState: [MIDIEndpointRef:ConnectionState] = [:]
 
   /**
    Current state of a MIDI connection to the inputPort
@@ -85,7 +96,27 @@ public final class MIDI: NSObject {
       let connected = activeConnections.contains(uniqueId)
       let group = groups[uniqueId]
       let channel = channels[uniqueId]
-      log.info("SourceConnectionState: endpoint: \(endpoint) uniqueId: \(uniqueId.asHex) name: \(displayName) connected: \(connected)")
+      if let state = connectionState[endpoint] {
+        log.debug(
+        """
+SourceConnectionState: endpoint: \(endpoint.asHex) \
+uniqueId: \(uniqueId.asHex) \
+name: \(displayName) \
+connected: \(connected) \
+parser: \(state.parser) \
+refCon: \(state.refCon)
+"""
+        )
+      } else {
+        log.debug(
+        """
+SourceConnectionState: endpoint: \(endpoint.asHex) \
+uniqueId: \(uniqueId.asHex) \
+name: \(displayName) \
+connected: \(connected)
+"""
+        )
+      }
       return .init(uniqueId: uniqueId, displayName: displayName, connected: connected, channel: channel, group: group)
     }
   }
@@ -173,7 +204,8 @@ extension MIDI {
     channels.removeAll()
     groups.removeAll()
     activeConnections.removeAll()
-    parsers.removeAll()
+    _ = connectionState.map { $0.1.refCon.deallocate() }
+    connectionState.removeAll()
 
     monitor?.didStop()
   }
@@ -202,7 +234,7 @@ extension MIDI {
   public func connect(to uniqueId: MIDIUniqueID, unchecked: Bool = false) -> Bool {
     let endpoints = KnownSources.matching(uniqueId: uniqueId)
     guard endpoints.count == 1 else {
-      log.info("connect - invalid endpoints: \(endpoints)")
+      log.info("connect - invalid endpoints: \(endpoints.map(\.logInfo))")
       return false
     }
     return eventQueue.sync {
@@ -249,7 +281,6 @@ extension MIDI {
   func createClient() -> Bool {
     let result = MIDIClientCreateWithBlock(clientName as CFString, &client) { [weak self] notificationPointer in
       guard let self = self else { return }
-
       let notification = notificationPointer.pointee
       let messageID = notification.messageID
       log.debug("client callback: \(messageID.tag)")
@@ -270,22 +301,26 @@ extension MIDI {
     if let midiProtocol = midiProto.midiProtocolId {
       log.debug("creating input port with protocol \(midiProtocol.rawValue) (event lists)")
       result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol, &inputPort) { [weak self] eventList, refCon in
-        guard let self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
-        guard case let Parser.v2(parser)? = self.parsers[uniqueId] else {
-          log.info("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection \(uniqueId.asHex)")
+        guard let self, let refCon else { return }
+        let endpoint = MIDIEndpointRef.unbox(refCon)
+        guard let state = self.connectionState[endpoint],
+              case let Parser.v2(parser) = state.parser else {
+          log.info("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection \(endpoint.asHex)")
           return
         }
-        self.processEventList(eventList: eventList, uniqueId: uniqueId, parser: parser)
+        self.processEventList(eventList: eventList, uniqueId: endpoint.uniqueId, parser: parser)
       }
     } else {
       log.debug("creating legacy input port (packet lists)")
       result = MIDIInputPortCreateWithBlock(client, inputPortName, &inputPort) { [weak self] packetList, refCon in
-        guard let self, let uniqueId = MIDIUniqueID.unbox(refCon) else { return }
-        guard case let Parser.v1(parser)? = self.parsers[uniqueId] else {
-          log.info("MIDIInputPortCreateWithBlock incoming traffic - unknown connection")
+        guard let self, let refCon else { return }
+        let endpoint = MIDIEndpointRef.unbox(refCon)
+        guard let state = self.connectionState[endpoint],
+              case let Parser.v1(parser) = state.parser else {
+          log.info("MIDIInputPortCreateWithBlock incoming traffic - unknown connection \(endpoint.asHex)")
           return
         }
-        self.processPacketList(packetList: packetList, uniqueId: uniqueId, parser: parser)
+        self.processPacketList(packetList: packetList, uniqueId: endpoint.uniqueId, parser: parser)
       }
     }
 
@@ -310,81 +345,88 @@ extension MIDI {
   }
 
   private func updateConnections() {
-    log.info("updateConnections")
+    log.info("updateConnections - BEGIN")
     monitor?.willUpdateConnections()
+
+    // Doing this just to dump the current state
+    _ = self.sourceConnections
 
     let sources = KnownSources.all.filter { $0.uniqueId != ourUniqueId }
     let added = sources.compactMap { connectSource(endpoint: $0) }
 
     let disappeared = activeConnections.subtracting(sources.uniqueIds)
-    let removed = disappeared.compactMap { disconnectSource(uniqueId: $0) }
+    let removed = disappeared.flatMap { disconnectSource(uniqueId: $0) }
 
     activeConnections.formUnion(added.map { $0.uniqueId })
     activeConnections.subtract(removed.map { $0.uniqueId })
 
     log.debug("activeConnections: \(activeConnections.map(\.asHex))")
-    log.debug("parsers: \(parsers.map{"\($0.0.asHex) : \($0.1)"})")
 
     monitor?.didUpdateConnections(connected: added, disappeared: disappeared.map { $0 })
   }
 
   private func connectSource(endpoint: MIDIEndpointRef, unchecked: Bool = false) -> MIDIEndpointRef? {
+    log.info("connectSource BEGIN - \(endpoint.logInfo)")
+
     let uniqueId = endpoint.uniqueId
     guard uniqueId != ourUniqueId else { return nil }
 
-    let name = endpoint.displayName
-    log.info("connectSource - endpoint: \(endpoint) uniqueId: \(uniqueId.asHex), name: \(name), endpoint: \(endpoint)")
-
     guard !activeConnections.contains(uniqueId) else {
-      log.debug("endpoint \(endpoint) already connected - uniqueId: \(uniqueId.asHex) name: \(name)")
+      log.debug("connectSource END - endpoint \(endpoint.asHex) already connected")
       return nil
     }
 
     guard unchecked || (monitor?.shouldConnect(to: uniqueId) ?? true) else {
-      log.info("connectSource - blocked by monitor")
+      log.info("connectSource END - blocked by monitor")
       return nil
     }
 
-    let refCon = uniqueId.boxed
-    refCons[uniqueId] = refCon
+    log.info("connecting endpoint - \(endpoint.logInfo)")
 
-    log.info("connecting endpoint - uniqueId: \(uniqueId.asHex) name: \(name) endpoint: \(endpoint) refCon: \(refCon)")
-    let success = MIDIPortConnectSource(inputPort, endpoint, refCon)
+    if let state = connectionState.removeValue(forKey: endpoint) {
+      state.refCon.deallocate()
+    }
+
+    let refCon = endpoint.boxed
+    let parser: Parser = self.midiProto == .legacy ? .v1(.init(midi: self)) : .v2(.init(midi: self))
+    connectionState[endpoint] = .init(parser: parser, refCon: refCon)
+
+    let success = MIDIPortConnectSource(inputPort, endpoint, endpoint.boxed)
       .wasSuccessful(log, "MIDIPortConnectSource")
     if success {
       // Legacy only supports MIDI v1 messages so we need MIDI1Parser. Otherwsise, use the MIDI2Parser which supports v1 and v2.
-      self.parsers[uniqueId] = self.midiProto == .legacy ? .v1(.init(midi: self)) : .v2(.init(midi: self))
-      monitor?.didConnect(to: uniqueId)
+      monitor?.didConnect(to: endpoint.uniqueId)
     }
 
+    log.info("connectSource END - \(endpoint.logInfo): success: \(success)")
     return success ? endpoint : nil
   }
 
-  private func disconnectSource(uniqueId: MIDIUniqueID) -> MIDIEndpointRef? {
-    log.info("disconnectSource - \(uniqueId.asHex)")
+  private func disconnectSource(uniqueId: MIDIUniqueID) -> [MIDIEndpointRef] {
+    log.info("disconnectSource BEGIN - \(uniqueId.asHex)")
 
     activeConnections.remove(uniqueId)
     groups.removeValue(forKey: uniqueId)
     channels.removeValue(forKey: uniqueId)
-    parsers.removeValue(forKey: uniqueId)
 
-    if let refCon = refCons.removeValue(forKey: uniqueId) {
-      refCon.deallocate()
-    }
-
-    // We need the endpoint to disconnect from, but it may not exist due to a disconnected cable.
     let endpoints = KnownSources.matching(uniqueId: uniqueId)
-    guard endpoints.count == 1 else {
-      log.debug("invalid endpoints with uniqueId \(uniqueId.asHex) - \(endpoints)")
-      return nil
+
+    for endpoint in endpoints {
+      if let state = self.connectionState.removeValue(forKey: endpoint) {
+        state.refCon.deallocate()
+      }
+
+      let success = MIDIPortDisconnectSource(inputPort, endpoint)
+        .wasSuccessful(log, "MIDIPortDisconnectSource")
+
+      log.info("disconnectSource \(endpoint.asHex) - \(success)")
     }
 
-    return MIDIPortDisconnectSource(inputPort, endpoints[0])
-      .wasSuccessful(log, "MIDIPortDisconnectSource") ? endpoints[0] : nil
+    return endpoints
   }
 
   private func initializeInputPort() {
-    log.debug("initializeInputPort")
+    log.debug("initializeInputPort BEGIN")
 
     if KnownDestinations.matching(uniqueId: ourUniqueId).isEmpty {
       ourUniqueId = inputPort.uniqueId
@@ -395,6 +437,7 @@ extension MIDI {
     inputPort.set(kMIDIPropertyManufacturer, to: manufacturer)
     inputPort.set(kMIDIPropertyModel, to: model)
     inputPort.set(kMIDIPropertyDisplayName, to: inputPort.name)
+    log.debug("initializeInputPort END")
   }
 
   private func configureNetworkConnections() {

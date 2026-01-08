@@ -15,10 +15,6 @@ class MIDIUniqueIDTests: XCTestCase {
     XCTAssertEqual(unboxed, uniqueId)
   }
 
-  func testUnboxingNilIsSafe() {
-    XCTAssertNil(MIDIUniqueID.unbox(nil))
-  }
-
   func testAsHex() {
     XCTAssertEqual(MIDIUniqueID(-1).asHex,  "0xFFFFFFFF")
     XCTAssertEqual(MIDIUniqueID(123).asHex, "0x0000007B")

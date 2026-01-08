@@ -31,6 +31,7 @@ class Monitor: MorkAndMIDI.MonitorWithDefaults {
     print("didConnectTo: \(endpoint.uniqueId)")
     DispatchQueue.global(qos: .userInitiated).async {
       sendNotes()
+      sendNotes()
     }
   }
 
@@ -90,5 +91,3 @@ func sendNotes() {
   packetBuilder.append(timestamp: mach_absolute_time(), words: [UInt32(0x21_81_60_00)])
   err = packetBuilder.withUnsafePointer { MIDIReceivedEventList(virtualOut, $0) }
 }
-
-sendNotes()

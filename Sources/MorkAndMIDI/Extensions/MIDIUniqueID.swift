@@ -11,21 +11,45 @@ extension MIDIUniqueID {
   public var boxed: UnsafeMutablePointer<MIDIUniqueID> {
     let refCon = UnsafeMutablePointer<MIDIUniqueID>.allocate(capacity: 1)
     refCon.initialize(to: self)
+    log.debug("boxed - \(self.asHex) -> \(refCon.pointee.asHex) -> \(refCon)")
     return refCon
   }
 
   /**
    Extract the MIDIUniqueID from a refCon value
 
-   - parameter refCon: optional raw pointer assumed to originate from `MIDIUniqueID.refCon`
-   - returns: the extracted MIDIUniquePtr if `refCon` exists
+   - parameter refCon: raw pointer assumed to originate from `MIDIUniqueID.refCon`
+   - returns: the extracted MIDIUniquePtr value
    */
-  public static func unbox(_ refCon: UnsafeRawPointer?) -> MIDIUniqueID? {
-    refCon?.assumingMemoryBound(to: MIDIUniqueID.self).pointee
+  public static func unbox(_ refCon: UnsafeRawPointer) -> Self {
+    let value = refCon.bindMemory(to: Self.self, capacity: 1).pointee
+    log.debug("unbox - \(refCon) -> \(value.asHex)")
+    return value
   }
 }
 
 extension MIDIUniqueID {
 
   public var asHex: String { String(format: "0x%08X", UInt32(bitPattern: self)) }
+}
+
+private let log: Logger = .init(category: "MIDIUniqueID")
+
+
+extension MIDIEndpointRef {
+
+  public var boxed: UnsafeMutablePointer<MIDIEndpointRef> {
+    let refCon = UnsafeMutablePointer<MIDIEndpointRef>.allocate(capacity: 1)
+    refCon.initialize(to: self)
+    log.debug("boxed - \(self.asHex) -> \(refCon.pointee.asHex) -> \(refCon)")
+    return refCon
+  }
+
+  public static func unbox(_ refCon: UnsafeRawPointer) -> Self {
+    let value = refCon.bindMemory(to: Self.self, capacity: 1).pointee
+    log.debug("unbox - \(refCon) -> \(value.asHex)")
+    return value
+  }
+
+  public var asHex: String { String(format: "0x%08X", self) }
 }
