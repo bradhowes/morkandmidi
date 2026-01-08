@@ -53,16 +53,19 @@ public final class MIDI: NSObject {
   struct ConnectionState {
     let parser: Parser
     let refCon: UnsafeMutablePointer<MIDIEndpointRef>
-    let timestamp: ContinuousClock.Instant
+    let quarantineCutoff: ContinuousClock.Instant
 
-    init(parser: Parser, refCon: UnsafeMutablePointer<MIDIEndpointRef>) {
+    var quarantined: Bool { .now < quarantineCutoff }
+
+    init(parser: Parser, refCon: UnsafeMutablePointer<MIDIEndpointRef>, quarantineDuration: Duration = .zero) {
       self.parser = parser
       self.refCon = refCon
-      self.timestamp = .now
+      self.quarantineCutoff = .now + quarantineDuration
     }
   }
 
   private var connectionState: [MIDIEndpointRef:ConnectionState] = [:]
+  private let quarantineDuration: Duration
 
   /**
    Current state of a MIDI connection to the inputPort
@@ -145,10 +148,11 @@ connected: \(connected)
    - parameter uniqueId: the unique ID to use for the input port of the client
    - parameter midiProto: the Apple MIDI protocol / API to use
    */
-  public init(clientName: String, uniqueId: MIDIUniqueID, midiProto: MIDIProto = .v1_0) {
+  public init(clientName: String, uniqueId: MIDIUniqueID, midiProto: MIDIProto = .v1_0, quarantineDuration: Duration = .zero) {
     self.midiProto = midiProto
     self.clientName = clientName
     self.ourUniqueId = uniqueId
+    self.quarantineDuration = quarantineDuration
     super.init()
   }
 
@@ -303,11 +307,18 @@ extension MIDI {
       result = MIDIInputPortCreateWithProtocol(client, inputPortName, midiProtocol, &inputPort) { [weak self] eventList, refCon in
         guard let self, let refCon else { return }
         let endpoint = MIDIEndpointRef.unbox(refCon)
+
         guard let state = self.connectionState[endpoint],
               case let Parser.v2(parser) = state.parser else {
           log.info("MIDIInputPortCreateWithProtocol incomiing traffic - unknown connection \(endpoint.asHex)")
           return
         }
+
+        guard !state.quarantined else {
+          log.info("MIDIInputPortCreateWithProtocol ignoring incomiing traffic due to quarantine")
+          return
+        }
+
         self.processEventList(eventList: eventList, uniqueId: endpoint.uniqueId, parser: parser)
       }
     } else {
@@ -315,11 +326,18 @@ extension MIDI {
       result = MIDIInputPortCreateWithBlock(client, inputPortName, &inputPort) { [weak self] packetList, refCon in
         guard let self, let refCon else { return }
         let endpoint = MIDIEndpointRef.unbox(refCon)
+
         guard let state = self.connectionState[endpoint],
               case let Parser.v1(parser) = state.parser else {
           log.info("MIDIInputPortCreateWithBlock incoming traffic - unknown connection \(endpoint.asHex)")
           return
         }
+
+        guard !state.quarantined else {
+          log.info("MIDIInputPortCreateWithProtocol ignoring incomiing traffic due to quarantine")
+          return
+        }
+
         self.processPacketList(packetList: packetList, uniqueId: endpoint.uniqueId, parser: parser)
       }
     }
@@ -389,7 +407,7 @@ extension MIDI {
 
     let refCon = endpoint.boxed
     let parser: Parser = self.midiProto == .legacy ? .v1(.init(midi: self)) : .v2(.init(midi: self))
-    connectionState[endpoint] = .init(parser: parser, refCon: refCon)
+    connectionState[endpoint] = .init(parser: parser, refCon: refCon, quarantineDuration: quarantineDuration)
 
     let success = MIDIPortConnectSource(inputPort, endpoint, endpoint.boxed)
       .wasSuccessful(log, "MIDIPortConnectSource")
@@ -409,20 +427,17 @@ extension MIDI {
     groups.removeValue(forKey: uniqueId)
     channels.removeValue(forKey: uniqueId)
 
-    let endpoints = KnownSources.matching(uniqueId: uniqueId)
-
-    for endpoint in endpoints {
-      if let state = self.connectionState.removeValue(forKey: endpoint) {
-        state.refCon.deallocate()
-      }
-
-      let success = MIDIPortDisconnectSource(inputPort, endpoint)
+    // Scan the known connections for endpoints that have the give uniqueId value.
+    // Disconnect from the endpoint and clean up their connection state.
+    // Return the collection of endpoint values that were affected.
+    let found = connectionState.filter { $0.0.uniqueId == uniqueId }
+    return found.map { endpoint, state in
+      _ = MIDIPortDisconnectSource(inputPort, endpoint)
         .wasSuccessful(log, "MIDIPortDisconnectSource")
-
-      log.info("disconnectSource \(endpoint.asHex) - \(success)")
+      state.refCon.deallocate()
+      connectionState.removeValue(forKey: endpoint)
+      return endpoint
     }
-
-    return endpoints
   }
 
   private func initializeInputPort() {
