@@ -11,8 +11,7 @@ A really thin Swift layer on top of [Core MIDI](https://developer.apple.com/docu
 that opens a virtual MIDI destination and port and connects to any MIDI endpoints that appear on the network,
 no questions asked.
 
-Currently just supports some MIDI v1 messages. However, it also provides enhancements to
-`MIDIPacket` and `MIDIPacketList` to support building new ones and to parse them.
+Currently just supports MIDI v1 messaging, but it does use Apple's v2 interface which provides for mapping v2 to v1. There is a v2 parser for processing MIDI v2 messages, but it is experimental.
 
 # Features
 
@@ -20,13 +19,19 @@ This package basically sets up MIDI and connects to all available inputs it find
 installing a `Monitor` instance, and actual MIDI commands can be observed by installing a `Receiver` instance.
 Everything else should be handled automatically by the package.
 
+# Limitations
+
+Currently, the library only creates one input port for receiving MIDI traffic, and this is done automatically at `midi.start()`.
+If you want more than one -- or you want finer control over port creation -- consider using another library such as 
+[MIDIKit](https://github.com/orchetect/MIDIKit)
+
 # To Use
 
 Create a new MIDI instance passing in a name to use for the endpoints that it will create, and a unique ID that will be
 assigned to the endpoints:
 
 ```swift
-let midi = MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345,  midiProto: .legacy)
+let midi = MIDI(clientName: "Na-Nu Na-Nu", uniqueId: 12_345,  midiProto: .v1_0)
 midi.monitor = my_monitor
 midi.receiver = my_receiver
 midi.start()
